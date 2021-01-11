@@ -1,0 +1,179 @@
+version: '3.7'
+
+networks:
+        web:
+                external: true
+        internal:
+                external: false
+
+services:
+        traefik:
+                container_name: dash
+                image: traefik:latest
+                restart: unless-stopped
+                command:
+                        --api.insecure=true
+                        --entypoints.web.address=:80
+                        --providers.docker=true
+                        --providers.docker.exposedbydefault=false
+                ports:
+                        - 80:80
+                        - 8080:8080
+                volumes:
+                        - /var/run/docker.sock:/var/run/docker.sock
+                        - /opt/traefik/traefik.yml:/traefik.yml
+                networks:
+                        - web
+                labels:
+                        traefik.http.routers.dash.rule: Host(`dash.${DOMAIN}`)
+                        traefik.http.routers.dash.service: api@internal
+
+        database:
+                image: ghcr.io/linuxserver/mariadb
+                restart: unless-stopped
+                volumes:
+                        - ${CONFIG_DIR}/mariadb/config:/config
+                ports:
+                        - 3306:3306
+                environment:
+                        - PUID=${PUID}
+                        - PGID=${PGID}
+                        - TZ=${TIMEZONE}
+                        - MYSQL_DATABASE=${DATABASE}
+                        - MYSQL_USER=${DATABASE_USERNAME}
+                        - MYSQL_PASSWORD=${DATABASE_PASSWORD}
+                        - MYSQL_ROOT_PASSWORD=${DATABASE_PASSWORD}
+                networks:
+                        - internal
+                labels:
+                        traefik.enable: false
+
+        nextcloud:
+                container_name: cloud
+                image: nextcloud
+                restart: unless-stopped
+                ports:
+                        - 8081:80
+                depends_on:
+                        - database
+                environment:
+                        - MYSQL_HOST=${DATABASE_HOST}
+                        - MYSQL_DATABASE=${DATABASE}
+                        - MYSQL_USER=${DATABASE_USERNAME}
+                        - MYSQL_PASSWORD=${DATABASE_PASSWORD}
+                networks:
+                        - web
+                        - internal
+                labels:
+                        traefik.http.routers.nextcloud.rule: Host(`cloud.${DOMAIN}`)
+                        traefik.port: 8081
+
+        bookstack:
+                container_name: wiki
+                image: ghcr.io/linuxserver/bookstack
+                restart: unless-stopped
+                environment:
+                        - PUID=${PUID}
+                        - PGID=${PGID}
+                        - TZ=${TIMEZONE}
+                        - APP_URL=http://wiki.${DOMAIN}
+                        - DB_HOST=${DATABASE_HOST}
+                        - DB_DATABASE=${DATABASE}
+                        - DB_USER=${DATABASE_USERNAME}
+                        - DB_PASS=${DATABASE_PASSWORD}
+                ports:
+                        - 6875:80
+                networks:
+                        - web
+                        - internal
+                depends_on:
+                        - database
+                volumes:
+                        - ${CONFIG_DIR}/bookstack/config:/config
+                labels:
+                        traefik.http.routers.bookstack.rule: Host(`wiki.${DOMAIN}`)
+                        traefik.port: 6875
+
+        jellyfin:
+                container_name: watch
+                image: ghcr.io/linuxserver/jellyfin
+                restart: unless-stopped
+                environment:
+                        - PUID=${PUID}
+                        - PGID=${PGID}
+                        - TZ=${TIMEZONE}
+                volumes:
+                        - ${CONFIG_DIR}/jellyfin/config:/config
+                        - ${CONFIG_DIR}/jellyfin/cache:/cache
+                        - ${MEDIA_DIR}/Movies:/Movies
+                        - ${MEDIA_DIR}/Television Shows:/Television Shows
+                devices:
+                        - /dev/dri:/dev/dri
+                ports:
+                        - 8096:8096
+                networks:
+                        - web
+                labels:
+                        traefik.http.routers.jellyfin.rule: Host(`watch.${DOMAIN}`)
+                        traefik.port: 8096
+
+        syncthing:
+                container_name: sync
+                image: ghcr.io/linuxserver/syncthing
+                restart: unless-stopped
+                environment:
+                        - PUID=${PUID}
+                        - PGID=${PGID}
+                        - TZ=${TIMEZONE}
+                volumes:
+                        - ${CONFIG_DIR}/syncthing/config:/config
+                        - ${SYNC_DIR}:/config/Sync
+                ports:
+                        - 8384:8384
+                        - 22000:22000
+                        - 21027:21027/udp
+                networks:
+                        - web
+                labels:
+                        traefik.http.routers.syncthing.rule: Host(`sync.${DOMAIN}`)
+                        traefik.port: 8384
+
+        calibre:
+                container_name: calibre
+                image: ghcr.io/linuxserver/calibre
+                restart: unless-stopped
+                environment:
+                        - PUID=${PUID}
+                        - PGID=${PGID}
+                        - TZ=${TIMEZONE}
+                volumes:
+                        - ${MEDIA_DIR}/Books:/config
+                ports:
+                        - 8082:8080
+                        - 8083:8081
+                networks:
+                        - web
+                labels:
+                        traefik.http.routers.calibre.rule: Host(`calibre.${DOMAIN}`)
+                        traefik.port: 8082
+
+        calibre-web:
+                container_name: read
+                image: ghcr.io/linuxserver/calibre-web
+                restart: unless-stopped
+                environment:
+                        - PUID=${PUID}
+                        - PGID=${PGID}
+                        - TZ=${TIMEZONE}
+                        - DOCKER_MODS=linuxserver/calibre-web:calibre
+                volumes:
+                        - ${CONFIG_DIR}/calibre-web/config:/config
+                        - ${MEDIA_DIR}/Books:/books
+                ports:
+                        - 8084:8083
+                networks:
+                        - web
+                labels:
+                        traefik.http.routers.calibreweb.rule: Host(`read.${DOMAIN}`)
+                        traefik.port: 8084
+
