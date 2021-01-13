@@ -52,8 +52,6 @@ services:
                 container_name: cloud
                 image: nextcloud
                 restart: unless-stopped
-                ports:
-                        - 8081:80
                 depends_on:
                         - database
                 environment:
@@ -61,6 +59,8 @@ services:
                         - MYSQL_DATABASE=${DATABASE}
                         - MYSQL_USER=${DATABASE_USERNAME}
                         - MYSQL_PASSWORD=${DATABASE_PASSWORD}
+                ports:
+                        - 8081:80
                 networks:
                         - web
                         - internal
@@ -72,6 +72,8 @@ services:
                 container_name: wiki
                 image: ghcr.io/linuxserver/bookstack
                 restart: unless-stopped
+                depends_on:
+                        - database
                 environment:
                         - PUID=${PUID}
                         - PGID=${PGID}
@@ -81,15 +83,13 @@ services:
                         - DB_DATABASE=${DATABASE}
                         - DB_USER=${DATABASE_USERNAME}
                         - DB_PASS=${DATABASE_PASSWORD}
+                volumes:
+                        - ${CONFIG_DIR}/bookstack/config:/config
                 ports:
                         - 6875:80
                 networks:
                         - web
                         - internal
-                depends_on:
-                        - database
-                volumes:
-                        - ${CONFIG_DIR}/bookstack/config:/config
                 labels:
                         traefik.http.routers.bookstack.rule: Host(`wiki.${DOMAIN}`)
                         traefik.port: 6875
