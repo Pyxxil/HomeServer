@@ -21,7 +21,7 @@ services:
                         - 8080:8080
                 volumes:
                         - /var/run/docker.sock:/var/run/docker.sock
-                        - /opt/traefik/traefik.yml:/traefik.yml
+                        - ${CONFIG_DIR}/traefik/traefik.yml:/traefik.yml
                 networks:
                         - web
                 labels:
@@ -48,7 +48,7 @@ services:
                 labels:
                         traefik.enable: false
 
-        nextcloud:
+        cloud:
                 container_name: cloud
                 image: nextcloud
                 restart: unless-stopped
@@ -68,7 +68,7 @@ services:
                         traefik.http.routers.nextcloud.rule: Host(`cloud.${DOMAIN}`)
                         traefik.port: 8081
 
-        bookstack:
+        wiki:
                 container_name: wiki
                 image: ghcr.io/linuxserver/bookstack
                 restart: unless-stopped
@@ -94,7 +94,7 @@ services:
                         traefik.http.routers.bookstack.rule: Host(`wiki.${DOMAIN}`)
                         traefik.port: 6875
 
-        jellyfin:
+        watch:
                 container_name: watch
                 image: ghcr.io/linuxserver/jellyfin
                 restart: unless-stopped
@@ -117,7 +117,7 @@ services:
                         traefik.http.routers.jellyfin.rule: Host(`watch.${DOMAIN}`)
                         traefik.port: 8096
 
-        syncthing:
+        sync:
                 container_name: sync
                 image: ghcr.io/linuxserver/syncthing
                 restart: unless-stopped
@@ -157,7 +157,7 @@ services:
                         traefik.http.routers.calibre.rule: Host(`calibre.${DOMAIN}`)
                         traefik.port: 8082
 
-        calibre-web:
+        read:
                 container_name: read
                 image: ghcr.io/linuxserver/calibre-web
                 restart: unless-stopped
