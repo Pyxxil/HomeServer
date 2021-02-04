@@ -13,8 +13,9 @@ services:
                 restart: unless-stopped
                 command:
                         --api.insecure=true
-                        --entypoints.web.address=:80
+                        --api.dashboard=true
                         --providers.docker=true
+                        --entrypoints.web.address=:80
                         --providers.docker.exposedbydefault=false
                 ports:
                         - 80:80
@@ -25,8 +26,8 @@ services:
                 networks:
                         - web
                 labels:
-                        traefik.http.routers.dash.rule: Host(`dash.${DOMAIN}`)
-                        traefik.http.routers.dash.service: api@internal
+                        traefik.http.routers.dashboard.rule: Host(`${DOMAIN}`) && (PathPrefix(`/api`) || PathPrefix(`/dashboard`))
+                        traefik.http.routers.dashboard.service: api@internal
 
         database:
                 image: ghcr.io/linuxserver/mariadb
@@ -36,13 +37,13 @@ services:
                 ports:
                         - 3306:3306
                 environment:
-                        - PUID=${PUID}
-                        - PGID=${PGID}
-                        - TZ=${TIMEZONE}
-                        - MYSQL_DATABASE=${DATABASE}
-                        - MYSQL_USER=${DATABASE_USERNAME}
-                        - MYSQL_PASSWORD=${DATABASE_PASSWORD}
-                        - MYSQL_ROOT_PASSWORD=${DATABASE_PASSWORD}
+                        PUID: ${PUID}
+                        PGID: ${PGID}
+                        TZ: ${TIMEZONE}
+                        MYSQL_DATABASE: ${DATABASE}
+                        MYSQL_USER: ${DATABASE_USERNAME}
+                        MYSQL_PASSWORD: ${DATABASE_PASSWORD}
+                        MYSQL_ROOT_PASSWORD: ${DATABASE_PASSWORD}
                 networks:
                         - internal
                 labels:
@@ -55,18 +56,18 @@ services:
                 depends_on:
                         - database
                 environment:
-                        - MYSQL_HOST=${DATABASE_HOST}
-                        - MYSQL_DATABASE=${DATABASE}
-                        - MYSQL_USER=${DATABASE_USERNAME}
-                        - MYSQL_PASSWORD=${DATABASE_PASSWORD}
+                        MYSQL_HOST: ${DATABASE_HOST}
+                        MYSQL_DATABASE: ${DATABASE}
+                        MYSQL_USER: ${DATABASE_USERNAME}
+                        MYSQL_PASSWORD: ${DATABASE_PASSWORD}
                 ports:
                         - 8081:80
                 networks:
                         - web
                         - internal
                 labels:
-                        traefik.http.routers.nextcloud.rule: Host(`cloud.${DOMAIN}`)
                         traefik.port: 8081
+                        traefik.http.routers.nextcloud.rule: Host(`cloud.${DOMAIN}`)
 
         wiki:
                 container_name: wiki
@@ -75,14 +76,14 @@ services:
                 depends_on:
                         - database
                 environment:
-                        - PUID=${PUID}
-                        - PGID=${PGID}
-                        - TZ=${TIMEZONE}
-                        - APP_URL=http://wiki.${DOMAIN}
-                        - DB_HOST=${DATABASE_HOST}
-                        - DB_DATABASE=${DATABASE}
-                        - DB_USER=${DATABASE_USERNAME}
-                        - DB_PASS=${DATABASE_PASSWORD}
+                        PUID: ${PUID}
+                        PGID: ${PGID}
+                        TZ: ${TIMEZONE}
+                        APP_URL: http://wiki.${DOMAIN}
+                        DB_HOST: ${DATABASE_HOST}
+                        DB_DATABASE: ${DATABASE}
+                        DB_USER: ${DATABASE_USERNAME}
+                        DB_PASS: ${DATABASE_PASSWORD}
                 volumes:
                         - ${CONFIG_DIR}/bookstack/config:/config
                 ports:
@@ -91,17 +92,17 @@ services:
                         - web
                         - internal
                 labels:
-                        traefik.http.routers.bookstack.rule: Host(`wiki.${DOMAIN}`)
                         traefik.port: 6875
+                        traefik.http.routers.bookstack.rule: Host(`wiki.${DOMAIN}`)
 
         watch:
                 container_name: watch
                 image: ghcr.io/linuxserver/jellyfin
                 restart: unless-stopped
                 environment:
-                        - PUID=${PUID}
-                        - PGID=${PGID}
-                        - TZ=${TIMEZONE}
+                        PUID: ${PUID}
+                        PGID: ${PGID}
+                        TZ: ${TIMEZONE}
                 volumes:
                         - ${CONFIG_DIR}/jellyfin/config:/config
                         - ${CONFIG_DIR}/jellyfin/cache:/cache
@@ -110,21 +111,21 @@ services:
                 devices:
                         - /dev/dri:/dev/dri
                 ports:
-                        - 8096:8096
+                        - 8920:8920
                 networks:
                         - web
                 labels:
-                        traefik.http.routers.jellyfin.rule: Host(`watch.${DOMAIN}`)
-                        traefik.port: 8096
+                        traefik.port: 8920
+                        traefik.http.routers.watch.rule: Host(`watch.${DOMAIN}`)
 
         sync:
                 container_name: sync
                 image: ghcr.io/linuxserver/syncthing
                 restart: unless-stopped
                 environment:
-                        - PUID=${PUID}
-                        - PGID=${PGID}
-                        - TZ=${TIMEZONE}
+                        PUID: ${PUID}
+                        PGID: ${PGID}
+                        TZ: ${TIMEZONE}
                 volumes:
                         - ${CONFIG_DIR}/syncthing/config:/config
                         - ${SYNC_DIR}:/config/Sync
@@ -135,17 +136,17 @@ services:
                 networks:
                         - web
                 labels:
-                        traefik.http.routers.syncthing.rule: Host(`sync.${DOMAIN}`)
                         traefik.port: 8384
+                        traefik.http.routers.syncthing.rule: Host(`sync.${DOMAIN}`)
 
         calibre:
                 container_name: calibre
                 image: ghcr.io/linuxserver/calibre
                 restart: unless-stopped
                 environment:
-                        - PUID=${PUID}
-                        - PGID=${PGID}
-                        - TZ=${TIMEZONE}
+                        PUID: ${PUID}
+                        PGID: ${PGID}
+                        TZ: ${TIMEZONE}
                 volumes:
                         - ${MEDIA_DIR}/Books:/config
                 ports:
@@ -154,18 +155,18 @@ services:
                 networks:
                         - web
                 labels:
-                        traefik.http.routers.calibre.rule: Host(`calibre.${DOMAIN}`)
                         traefik.port: 8082
+                        traefik.http.routers.calibre.rule: Host(`calibre.${DOMAIN}`)
 
         read:
                 container_name: read
                 image: ghcr.io/linuxserver/calibre-web
                 restart: unless-stopped
                 environment:
-                        - PUID=${PUID}
-                        - PGID=${PGID}
-                        - TZ=${TIMEZONE}
-                        - DOCKER_MODS=linuxserver/calibre-web:calibre
+                        PUID: ${PUID}
+                        PGID: ${PGID}
+                        TZ: ${TIMEZONE}
+                        DOCKER_MODS: linuxserver/calibre-web:calibre
                 volumes:
                         - ${CONFIG_DIR}/calibre-web/config:/config
                         - ${MEDIA_DIR}/Books:/books
@@ -174,6 +175,6 @@ services:
                 networks:
                         - web
                 labels:
-                        traefik.http.routers.calibreweb.rule: Host(`read.${DOMAIN}`)
                         traefik.port: 8084
+                        traefik.http.routers.calibreweb.rule: Host(`read.${DOMAIN}`)
 
