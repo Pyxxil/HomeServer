@@ -12,11 +12,15 @@ services:
                 image: traefik:latest
                 restart: unless-stopped
                 command:
-                        --api.insecure=true
-                        --api.dashboard=true
-                        --providers.docker=true
-                        --entrypoints.web.address=:80
-                        --providers.docker.exposedbydefault=false
+                        - "--api.dashboard=true"
+                        - "--api.insecure=true"
+                        - "--entrypoints.web.address=:80"
+                        - "--log.level=DEBUG"
+                        - "--metrics.prometheus=true"
+                        - "--metrics.prometheus.buckets=0.1,0.3,1.2,5.0"
+                        - "--providers.docker=true"
+                        - "--providers.docker.watch"
+                        - "--providers.docker.exposedbydefault=false"
                 ports:
                         - 80:80
                         - 8080:8080
@@ -28,12 +32,86 @@ services:
                 labels:
                         traefik.http.routers.dashboard.rule: Host(`${DOMAIN}`) && (PathPrefix(`/api`) || PathPrefix(`/dashboard`))
                         traefik.http.routers.dashboard.service: api@internal
+                        plugsy.name: Traefik
+                        plugsy.category: System
+
+        plugsy:
+                container_name: plugsy
+                image: plugsy/core
+                restart: always
+                networks:
+                        - web
+                volumes:
+                        - /var/run/docker.sock:/var/run/docker.sock
+                ports:
+                        - 8000:3000
+                labels:
+                        traefik.http.routers.plugsy.rule: Host(`plugins.${DOMAIN}`)
+                        traefik.port: 8000
+
+        # prometheus:
+        #         image: prom/prometheus
+        #         restart: unless-stopped
+        #         volumes:
+        #                 - ./config/prometheus/:/etc/prometheus/
+        #                 - ./config/prometheus-data:/prometheus
+        #         command:
+        #                 - '--config.file=/etc/prometheus/prometheus.yml'
+        #                 - '--storage.tsdb.path=/prometheus'
+        #                 - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+        #                 - '--web.console.templates=/usr/share/prometheus/consoles'
+        #         networks:
+        #                 - web
+        #         labels:
+        #                 traefik.http.routers.prometheus.rule: Host(`prometheus.${DOMAIN}`)
+        #                 traefik.http.routers.prometheus.service: prometheus
+        #                 traefik.http.services.prometheus.loadbalancer.server.port: 9090
+        #                 traefik.docker.network: web
+
+        # grafana:
+        #         image: grafana/grafana
+        #         depends_on:
+        #                 - prometheus
+        #         volumes:
+        #                 - ./config/grafana/data/:/var/lib/grafana
+        #                 - ./config/grafana/provisioning/:/etc/grafana/provisioning/
+        #         env_file:
+        #                 - ./config/grafana/config.monitoring
+        #         networks:
+        #                 - web
+        #         user: "104"
+        #         labels:
+        #                 traefik.http.routers.grafana.rule: Host(`grafana.${DOMAIN}`)
+        #                 traefik.http.routers.grafana.service: grafana
+        #                 traefik.http.services.grafana.loadbalancer.server.port: 3000
+        #                 traefik.docker.network: web
+
+        heimdall:
+                image: lscr.io/linuxserver/heimdall
+                container_name: heimdall
+                restart: unless-stopped
+                networks:
+                        - web
+                volumes:
+                        - ${CONFIG_DIR}/heimdall:/config
+                ports:
+                        - 83:80
+                environment:
+                        PUID: ${PUID}
+                        PGID: ${PGID}
+                        TZ: ${TIMEZONE}
+                labels:
+                        traefik.port: 83
+                        traefik.http.routers.heimdall.rule: Host(`dash.${DOMAIN}`)
+                        plugsy.name: Heimdall
+                        plugsy.category: System
+                        plugsy.link: http://dash.${DOMAIN}
 
         database:
-                image: ghcr.io/linuxserver/mariadb
+                image: lscr.io/linuxserver/mariadb
                 restart: unless-stopped
                 volumes:
-                        - ${CONFIG_DIR}/mariadb/config:/config
+                        - ${CONFIG_DIR}/mariadb:/config
                 ports:
                         - 3306:3306
                 environment:
@@ -48,6 +126,29 @@ services:
                         - internal
                 labels:
                         traefik.enable: false
+                        plugsy.name: MariaDB
+                        plugsy.category: System
+
+        adguard:
+                container_name: adguard
+                image: adguard/adguardhome
+                restart: always
+                volumes:
+                        - ${CONFIG_DIR}/adguard:/opt/adguardhome/conf
+                networks:
+                        - web
+                ports:
+                        - 53:53/tcp
+                        - 53:53/udp
+                        - 443:443/tcp
+                        - 443:443/udp
+                        - 3000:3000/tcp
+                labels:
+                        traefik.port: 3000
+                        traefik.http.routers.adguard.rule: Host(`dns.${DOMAIN}`)
+                        plugsy.name: AdGuard
+                        plugsy.link: http://dns.${DOMAIN}/
+                        plugsy.category: Privacy
 
         cloud:
                 container_name: cloud
@@ -67,11 +168,15 @@ services:
                         - internal
                 labels:
                         traefik.port: 8081
-                        traefik.http.routers.nextcloud.rule: Host(`cloud.${DOMAIN}`)
+                        traefik.http.routers.cloud.rule: Host(`cloud.${DOMAIN}`)
+                        plugsy.name: NextCloud
+                        plugsy.category: Cloud
+                        plugsy.parents: MariaDB
+                        plugsy.link: http://cloud.${DOMAIN}
 
         wiki:
                 container_name: wiki
-                image: ghcr.io/linuxserver/bookstack
+                image: lscr.io/linuxserver/bookstack
                 restart: unless-stopped
                 depends_on:
                         - database
@@ -85,7 +190,7 @@ services:
                         DB_USER: ${DATABASE_USERNAME}
                         DB_PASS: ${DATABASE_PASSWORD}
                 volumes:
-                        - ${CONFIG_DIR}/bookstack/config:/config
+                        - ${CONFIG_DIR}/bookstack:/config
                 ports:
                         - 6875:80
                 networks:
@@ -93,23 +198,105 @@ services:
                         - internal
                 labels:
                         traefik.port: 6875
-                        traefik.http.routers.bookstack.rule: Host(`wiki.${DOMAIN}`)
+                        traefik.http.routers.wiki.rule: Host(`wiki.${DOMAIN}`)
+                        plugsy.name: Personal Wiki
+                        plugsy.category: Cloud
+                        plugsy.parents: MariaDB
+                        plugsy.link: http://wiki.${DOMAIN}
 
-        watch:
-                container_name: watch
-                image: ghcr.io/linuxserver/jellyfin
+        radarr:
+                image: lscr.io/linuxserver/radarr:latest
+                container_name: radarr
                 restart: unless-stopped
                 environment:
                         PUID: ${PUID}
                         PGID: ${PGID}
                         TZ: ${TIMEZONE}
                 volumes:
-                        - ${CONFIG_DIR}/jellyfin/config:/config
+                        - ${CONFIG_DIR}/radarr:/config
+                        - ${DOWNLOAD_MOVIE_DIR}:/movies
+                        - ${DOWNLOAD_DIR}:/downloads
+                ports:
+                        - 7878:7878
+                networks:
+                        - web
+                labels:
+                        traefik.port: 7878
+                        traefik.http.routers.radarr.rule: Host(`movies.${DOMAIN}`)
+                        plugsy.name: Radarr
+                        plugsy.category: Media
+                        plugsy.link: http://movies.${DOMAIN}
+
+        sonarr:
+                image: lscr.io/linuxserver/sonarr:latest
+                container_name: sonarr
+                restart: unless-stopped
+                environment:
+                        PUID: ${PUID}
+                        PGID: ${PGID}
+                        TZ: ${TIMEZONE}
+                volumes:
+                        - ${CONFIG_DIR}/sonarr:/config
+                        - ${DOWNLOAD_TV_DIR}:/shows
+                        - ${DOWNLOAD_DIR}:/downloads
+                ports:
+                        - 8989:8989
+                networks:
+                        - web
+                labels:
+                        traefik.port: 8989
+                        traefik.http.routers.sonarr.rule: Host(`tv.${DOMAIN}`)
+                        plugsy.name: Sonarr
+                        plugsy.category: Media
+                        plugsy.link: http://tv.${DOMAIN}
+
+        qbittorrent:
+                image: lscr.io/linuxserver/qbittorrent:latest
+                container_name: qbittorrent
+                restart: unless-stopped
+                environment:
+                        PUID: ${PUID}
+                        PGID: ${PGID}
+                        TZ: ${TIMEZONE}
+                        WEBUI_PORT: 8980
+                volumes:
+                        - ${CONFIG_DIR}/qbittorrent:/config
+                        - ${DOWNLOAD_DIR}:/downloads
+                ports:
+                        - 8980:8980
+                        - 6881:6881
+                        - 6881:6881/udp
+                networks:
+                        - web
+                labels:
+                        traefik.port: 8980
+                        traefik.http.routers.qbittorrent.rule: Host(`torrent.${DOMAIN}`)
+                        traefik.http.middlewares.qbittorrent-headers.headers.customrequestheaders.X-Frame-Options: SAMEORIGIN
+                        traefik.http.middlewares.qbittorrent-headers.headers.customrequestheaders.Referer: ""
+                        traefik.http.middlewares.qbittorrent-headers.headers.customrequestheaders.Origin: ""
+                        traefik.http.routers.qbittorrent.middlewares: qbittorrent-headers
+                        traefik.http.services.qbittorrent.loadbalancer.server.port: 8980
+                        traefik.http.services.qbittorrent.loadbalancer.passhostheader: false
+                        plugsy.name: qBittorrent
+                        plugsy.category: Media
+                        plugsy.link: http://torrent.${DOMAIN}
+
+        watch:
+                container_name: watch
+                image: lscr.io/linuxserver/jellyfin
+                restart: unless-stopped
+                environment:
+                        PUID: ${PUID}
+                        PGID: ${PGID}
+                        TZ: ${TIMEZONE}
+                volumes:
+                        - ${CONFIG_DIR}/jellyfin:/config
                         - ${CONFIG_DIR}/jellyfin/cache:/cache
                         - ${MEDIA_DIR}/Movies:/Movies
                         - ${MEDIA_DIR}/Television Shows:/Television Shows
                 devices:
-                        - /dev/dri:/dev/dri
+                        - /dev/dri/renderD128:/dev/dri/renderD128
+                        - /dev/dri/card0:/dev/dri/card0
                 ports:
                         - 8920:8920
                 networks:
@@ -117,17 +304,20 @@ services:
                 labels:
                         traefik.port: 8920
                         traefik.http.routers.watch.rule: Host(`watch.${DOMAIN}`)
+                        plugsy.name: Jellyfin
+                        plugsy.category: Media
+                        plugsy.link: http://watch.${DOMAIN}
 
         sync:
                 container_name: sync
-                image: ghcr.io/linuxserver/syncthing
+                image: lscr.io/linuxserver/syncthing
                 restart: unless-stopped
                 environment:
                         PUID: ${PUID}
                         PGID: ${PGID}
                         TZ: ${TIMEZONE}
                 volumes:
-                        - ${CONFIG_DIR}/syncthing/config:/config
+                        - ${CONFIG_DIR}/syncthing:/config
                         - ${SYNC_DIR}:/config/Sync
                 ports:
                         - 8384:8384
@@ -137,11 +327,14 @@ services:
                         - web
                 labels:
                         traefik.port: 8384
-                        traefik.http.routers.syncthing.rule: Host(`sync.${DOMAIN}`)
+                        traefik.http.routers.sync.rule: Host(`sync.${DOMAIN}`)
+                        plugsy.name: Syncthing
+                        plugsy.category: Cloud
+                        plugsy.link: http://sync.${DOMAIN}
 
         calibre:
                 container_name: calibre
-                image: ghcr.io/linuxserver/calibre
+                image: lscr.io/linuxserver/calibre
                 restart: unless-stopped
                 environment:
                         PUID: ${PUID}
@@ -157,10 +350,12 @@ services:
                 labels:
                         traefik.port: 8082
                         traefik.http.routers.calibre.rule: Host(`calibre.${DOMAIN}`)
+                        plugsy.name: Calibre
+                        plugsy.category: System
 
         read:
                 container_name: read
-                image: ghcr.io/linuxserver/calibre-web
+                image: lscr.io/linuxserver/calibre-web
                 restart: unless-stopped
                 environment:
                         PUID: ${PUID}
@@ -168,7 +363,7 @@ services:
                         TZ: ${TIMEZONE}
                         DOCKER_MODS: linuxserver/calibre-web:calibre
                 volumes:
-                        - ${CONFIG_DIR}/calibre-web/config:/config
+                        - ${CONFIG_DIR}/calibre-web:/config
                         - ${MEDIA_DIR}/Books:/books
                 ports:
                         - 8084:8083
@@ -176,5 +371,7 @@ services:
                         - web
                 labels:
                         traefik.port: 8084
-                        traefik.http.routers.calibreweb.rule: Host(`read.${DOMAIN}`)
-
+                        traefik.http.routers.read.rule: Host(`read.${DOMAIN}`)
+                        plugsy.name: Calibre Web
+                        plugsy.category: Media
+                        plugsy.link: http://read.${DOMAIN}
