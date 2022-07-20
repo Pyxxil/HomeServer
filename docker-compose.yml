@@ -12,12 +12,11 @@ services:
                 image: traefik:latest
                 restart: unless-stopped
                 command:
+                        - "--api=true"
                         - "--api.dashboard=true"
                         - "--api.insecure=true"
                         - "--entrypoints.web.address=:80"
                         - "--log.level=DEBUG"
-                        - "--metrics.prometheus=true"
-                        - "--metrics.prometheus.buckets=0.1,0.3,1.2,5.0"
                         - "--providers.docker=true"
                         - "--providers.docker.watch"
                         - "--providers.docker.exposedbydefault=false"
@@ -46,45 +45,30 @@ services:
                 ports:
                         - 8000:3000
                 labels:
-                        traefik.http.routers.plugsy.rule: Host(`plugins.${DOMAIN}`)
                         traefik.port: 8000
+                        traefik.http.routers.plugsy.rule: Host(`plugins.${DOMAIN}`)
 
-        # prometheus:
-        #         image: prom/prometheus
-        #         restart: unless-stopped
-        #         volumes:
-        #                 - ./config/prometheus/:/etc/prometheus/
-        #                 - ./config/prometheus-data:/prometheus
-        #         command:
-        #                 - '--config.file=/etc/prometheus/prometheus.yml'
-        #                 - '--storage.tsdb.path=/prometheus'
-        #                 - '--web.console.libraries=/usr/share/prometheus/console_libraries'
-        #                 - '--web.console.templates=/usr/share/prometheus/consoles'
-        #         networks:
-        #                 - web
-        #         labels:
-        #                 traefik.http.routers.prometheus.rule: Host(`prometheus.${DOMAIN}`)
-        #                 traefik.http.routers.prometheus.service: prometheus
-        #                 traefik.http.services.prometheus.loadbalancer.server.port: 9090
-        #                 traefik.docker.network: web
-
-        # grafana:
-        #         image: grafana/grafana
-        #         depends_on:
-        #                 - prometheus
-        #         volumes:
-        #                 - ./config/grafana/data/:/var/lib/grafana
-        #                 - ./config/grafana/provisioning/:/etc/grafana/provisioning/
-        #         env_file:
-        #                 - ./config/grafana/config.monitoring
-        #         networks:
-        #                 - web
-        #         user: "104"
-        #         labels:
-        #                 traefik.http.routers.grafana.rule: Host(`grafana.${DOMAIN}`)
-        #                 traefik.http.routers.grafana.service: grafana
-        #                 traefik.http.services.grafana.loadbalancer.server.port: 3000
-        #                 traefik.docker.network: web
+        portainer:
+                image: portainer/portainer-ce
+                container_name: portainer
+                restart: unless-stopped
+                security_opt:
+                        - no-new-privileges:true
+                volumes:
+                        - /var/run/docker.sock:/var/run/docker.sock
+                        - ${CONFIG_DIR}/portainer:/data
+                ports:
+                        - 9000:9000
+                networks:
+                        - web
+                        - internal
+                labels:
+                        traefik.port: 9000
+                        traefik.http.routers.portainer.rule: Host(`portainer.${DOMAIN}`)
+                        traefik.http.services.portainer.loadbalancer.server.port: 9000
+                        plugsy.name: Portainer
+                        plugsy.category: System
+                        plugsy.link: http://portainer.${DOMAIN}
 
         heimdall:
                 image: lscr.io/linuxserver/heimdall
@@ -109,6 +93,7 @@ services:
 
         database:
                 image: lscr.io/linuxserver/mariadb
+                container_name: MariaDB
                 restart: unless-stopped
                 volumes:
                         - ${CONFIG_DIR}/mariadb:/config
@@ -146,6 +131,7 @@ services:
                 labels:
                         traefik.port: 3000
                         traefik.http.routers.adguard.rule: Host(`dns.${DOMAIN}`)
+                        traefik.http.services.adguard.loadbalancer.server.port: 3000
                         plugsy.name: AdGuard
                         plugsy.link: http://dns.${DOMAIN}/
                         plugsy.category: Privacy
@@ -214,7 +200,7 @@ services:
                         TZ: ${TIMEZONE}
                 volumes:
                         - ${CONFIG_DIR}/radarr:/config
-                        - ${DOWNLOAD_MOVIE_DIR}:/movies
+                        - ${MEDIA_DIR}/Movies:/movies
                         - ${DOWNLOAD_DIR}:/downloads
                 ports:
                         - 7878:7878
@@ -237,7 +223,7 @@ services:
                         TZ: ${TIMEZONE}
                 volumes:
                         - ${CONFIG_DIR}/sonarr:/config
-                        - ${DOWNLOAD_TV_DIR}:/shows
+                        - ${MEDIA_DIR}/Television Shows:/shows
                         - ${DOWNLOAD_DIR}:/downloads
                 ports:
                         - 8989:8989
@@ -294,6 +280,8 @@ services:
                         - ${CONFIG_DIR}/jellyfin/cache:/cache
                         - ${MEDIA_DIR}/Movies:/Movies
                         - ${MEDIA_DIR}/Television Shows:/Television Shows
+                        - ${MEDIA_DIR}/Music:/Music
+                        - ${MEDIA_DIR}/Youtube:/Youtube
                 devices:
                         - /dev/dri/renderD128:/dev/dri/renderD128
                         - /dev/dri/card0:/dev/dri/card0
@@ -375,3 +363,50 @@ services:
                         plugsy.name: Calibre Web
                         plugsy.category: Media
                         plugsy.link: http://read.${DOMAIN}
+
+        ytdl_material:
+                image: tzahi12345/youtubedl-material:latest
+                container_name: YoutubeDL
+                environment: 
+                        ALLOW_CONFIG_MUTATIONS: 'true'
+                        ytdl_mongodb_connection_string: 'mongodb://mongo:27017'
+                        ytdl_use_local_db: 'false'
+                        write_ytdl_config: 'true'
+                restart: unless-stopped
+                depends_on:
+                        - mongo
+                volumes:
+                        - ${CONFIG_DIR}/youtube/appdata:/app/appdata
+                        - ${MEDIA_DIR}/Music:/app/audio
+                        - ${MEDIA_DIR}/Youtube:/app/video
+                        - ${CONFIG_DIR}/youtube/subscriptions:/app/subscriptions
+                        - ${CONFIG_DIR}/youtube/users:/app/users
+                ports:
+                        - 8998:17442
+                networks:
+                        - internal
+                        - web
+                labels:
+                        traefik.port: 8998
+                        traefik.http.routers.youtube.rule: Host(`youtube.${DOMAIN}`)
+                        plugsy.name: YoutubeDL Material
+                        plugsy.category: Media
+                        plugsy.link: http://youtube.${DOMAIN}
+
+
+        mongo:
+                image: mongo
+                container_name: mongo
+                ports:
+                        - 27017:27017
+                logging:
+                        driver: none
+                networks:
+                        - internal
+                restart: unless-stopped
+                volumes:
+                        - ${CONFIG_DIR}/mongo:/data/db
+                labels:
+                        traefik.enable: false
+                        plugsy.name: MongoDB
+                        plugsy.category: System
