@@ -27,6 +27,11 @@ volumes:
                         type: none
                         device: ${CONFIG_DIR}/heimdall
                         o: bind
+        config-jackett:
+                driver_opts:
+                        type: none
+                        device: ${CONFIG_DIR}/jackett
+                        o: bind
         config-jellyfin:
                 driver_opts:
                         type: none
@@ -363,6 +368,28 @@ services:
                         plugsy.name: Lidarr
                         plugsy.category: Media
                         plugsy.link: http://music.${DOMAIN}
+
+        jackett:
+                image: lscr.io/linuxserver/jackett:latest
+                container_name: jackett
+                environment:
+                        PUID: ${PUID}
+                        PGID: ${PGID}
+                        TZ: ${TIMEZONE}
+                volumes:
+                        - config-jackett:/config
+                        - downloads:/downloads
+                ports:
+                        - 9117:9117
+                restart: unless-stopped
+                networks:
+                        - web
+                labels:
+                        traefik.port: 9117
+                        traefik.http.routers.jackett.rule: Host(`jackett.${DOMAIN}`)
+                        plugsy.name: jackett
+                        plugsy.category: Media
+                        plugsy.link: http://jackett.${DOMAIN}
 
         qbittorrent:
                 image: lscr.io/linuxserver/qbittorrent:latest
