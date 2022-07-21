@@ -6,9 +6,131 @@ networks:
         internal:
                 external: false
 
+volumes:
+        config-adguard:
+                driver_opts:
+                        type: none
+                        device: ${CONFIG_DIR}/adguard
+                        o: bind
+        config-bookstack:
+                driver_opts:
+                        type: none
+                        device: ${CONFIG_DIR}/bookstack
+                        o: bind
+        config-calibre-web:
+                driver_opts:
+                        type: none
+                        device: ${CONFIG_DIR}/calibre-web
+                        o: bind
+        config-heimdall:
+                driver_opts:
+                        type: none
+                        device: ${CONFIG_DIR}/heimdall
+                        o: bind
+        config-jellyfin:
+                driver_opts:
+                        type: none
+                        device: ${CONFIG_DIR}/jellyfin
+                        o: bind
+        config-jellyfin-cache:
+                driver_opts:
+                        type: none
+                        device: ${CONFIG_DIR}/jellyfin/cache
+                        o: bind
+        config-lidarr:
+                driver_opts:
+                        type: none
+                        device: ${CONFIG_DIR}/lidarr
+                        o: bind
+        config-mariadb:
+                driver_opts:
+                        type: none
+                        device: ${CONFIG_DIR}/mariadb
+                        o: bind
+        config-mongo:
+                driver_opts:
+                        type: none
+                        device: ${CONFIG_DIR}/mongo
+                        o: bind
+        config-portainer:
+                driver_opts:
+                        type: none
+                        device: ${CONFIG_DIR}/portainer
+                        o: bind
+        config-qbittorrent:
+                driver_opts:
+                        type: none
+                        device: ${CONFIG_DIR}/qbittorrent
+                        o: bind
+        config-radarr:
+                driver_opts:
+                        type: none
+                        device: ${CONFIG_DIR}/radarr
+                        o: bind
+        config-sonarr:
+                driver_opts:
+                        type: none
+                        device: ${CONFIG_DIR}/sonarr
+                        o: bind
+        config-syncthing:
+                driver_opts:
+                        type: none
+                        device: ${CONFIG_DIR}/syncthing
+                        o: bind
+        config-youtubedl-appdata:
+                driver_opts:
+                        type: none
+                        device: ${CONFIG_DIR}/youtube/appdata
+                        o: bind
+        config-youtubedl-subscriptions:
+                driver_opts:
+                        type: none
+                        device: ${CONFIG_DIR}/youtube/subscriptions
+                        o: bind
+        config-youtubedl-users:
+                driver_opts:
+                        type: none
+                        device: ${CONFIG_DIR}/youtube/users
+                        o: bind
+        downloads:
+                driver_opts:
+                        type: none
+                        device: ${DOWNLOAD_DIR}
+                        o: bind
+        media-books:
+                driver_opts:
+                        type: none
+                        device: ${MEDIA_DIR}/Books
+                        o: bind
+        media-movies:
+                driver_opts:
+                        type: none
+                        device: ${MEDIA_DIR}/Movies
+                        o: bind
+        media-music:
+                driver_opts:
+                        type: none
+                        device: ${MEDIA_DIR}/Music
+                        o: bind
+        media-shows:
+                driver_opts:
+                        type: none
+                        device: ${MEDIA_DIR}/Television Shows
+                        o: bind
+        media-youtube:
+                driver_opts:
+                        type: none
+                        device: ${MEDIA_DIR}/Youtube
+                        o: bind
+        sync:
+                driver_opts:
+                        type: none
+                        device: ${SYNC_DIR}
+                        o: bind
+
 services:
         traefik:
-                container_name: dash
+                container_name: traefik
                 image: traefik:latest
                 restart: unless-stopped
                 command:
@@ -28,6 +150,12 @@ services:
                         - ${CONFIG_DIR}/traefik/traefik.yml:/traefik.yml
                 networks:
                         - web
+                        - internal
+                healthcheck:
+                        test: ["CMD", "traefik", "healthcheck"]
+                        interval: 30s
+                        timeout: 3s
+                        retries: 3
                 labels:
                         traefik.http.routers.dashboard.rule: Host(`${DOMAIN}`) && (PathPrefix(`/api`) || PathPrefix(`/dashboard`))
                         traefik.http.routers.dashboard.service: api@internal
@@ -56,7 +184,7 @@ services:
                         - no-new-privileges:true
                 volumes:
                         - /var/run/docker.sock:/var/run/docker.sock
-                        - ${CONFIG_DIR}/portainer:/data
+                        - config-portainer:/data
                 ports:
                         - 9000:9000
                 networks:
@@ -77,7 +205,7 @@ services:
                 networks:
                         - web
                 volumes:
-                        - ${CONFIG_DIR}/heimdall:/config
+                        - config-heimdall:/config
                 ports:
                         - 83:80
                 environment:
@@ -91,35 +219,12 @@ services:
                         plugsy.category: System
                         plugsy.link: http://dash.${DOMAIN}
 
-        database:
-                image: lscr.io/linuxserver/mariadb
-                container_name: MariaDB
-                restart: unless-stopped
-                volumes:
-                        - ${CONFIG_DIR}/mariadb:/config
-                ports:
-                        - 3306:3306
-                environment:
-                        PUID: ${PUID}
-                        PGID: ${PGID}
-                        TZ: ${TIMEZONE}
-                        MYSQL_DATABASE: ${DATABASE}
-                        MYSQL_USER: ${DATABASE_USERNAME}
-                        MYSQL_PASSWORD: ${DATABASE_PASSWORD}
-                        MYSQL_ROOT_PASSWORD: ${DATABASE_PASSWORD}
-                networks:
-                        - internal
-                labels:
-                        traefik.enable: false
-                        plugsy.name: MariaDB
-                        plugsy.category: System
-
         adguard:
                 container_name: adguard
                 image: adguard/adguardhome
                 restart: always
                 volumes:
-                        - ${CONFIG_DIR}/adguard:/opt/adguardhome/conf
+                        - config-adguard:/opt/adguardhome/conf
                 networks:
                         - web
                 ports:
@@ -141,7 +246,7 @@ services:
                 image: nextcloud
                 restart: unless-stopped
                 depends_on:
-                        - database
+                        - mariadb
                 environment:
                         MYSQL_HOST: ${DATABASE_HOST}
                         MYSQL_DATABASE: ${DATABASE}
@@ -176,7 +281,7 @@ services:
                         DB_USER: ${DATABASE_USERNAME}
                         DB_PASS: ${DATABASE_PASSWORD}
                 volumes:
-                        - ${CONFIG_DIR}/bookstack:/config
+                        - config-bookstack:/config
                 ports:
                         - 6875:80
                 networks:
@@ -199,9 +304,9 @@ services:
                         PGID: ${PGID}
                         TZ: ${TIMEZONE}
                 volumes:
-                        - ${CONFIG_DIR}/radarr:/config
-                        - ${MEDIA_DIR}/Movies:/movies
-                        - ${DOWNLOAD_DIR}:/downloads
+                        - config-radarr:/config
+                        - media-movies:/movies
+                        - downloads:/downloads
                 ports:
                         - 7878:7878
                 networks:
@@ -222,9 +327,9 @@ services:
                         PGID: ${PGID}
                         TZ: ${TIMEZONE}
                 volumes:
-                        - ${CONFIG_DIR}/sonarr:/config
-                        - ${MEDIA_DIR}/Television Shows:/shows
-                        - ${DOWNLOAD_DIR}:/downloads
+                        - config-sonarr:/config
+                        - media-shows:/shows
+                        - downloads:/downloads
                 ports:
                         - 8989:8989
                 networks:
@@ -236,6 +341,29 @@ services:
                         plugsy.category: Media
                         plugsy.link: http://tv.${DOMAIN}
 
+        lidarr:
+                image: lscr.io/linuxserver/lidarr:latest
+                container_name: lidarr
+                environment:
+                        PUID: ${PUID}
+                        PGID: ${PGID}
+                        TZ: ${TIMEZONE}
+                volumes:
+                        - config-lidarr:/config
+                        - media-music:/music
+                        - downloads:/downloads
+                ports:
+                        - 6767:8686
+                restart: unless-stopped
+                networks:
+                        - web
+                labels:
+                        traefik.port: 6767
+                        traefik.http.routers.lidarr.rule: Host(`music.${DOMAIN}`)
+                        plugsy.name: Lidarr
+                        plugsy.category: Media
+                        plugsy.link: http://music.${DOMAIN}
+
         qbittorrent:
                 image: lscr.io/linuxserver/qbittorrent:latest
                 container_name: qbittorrent
@@ -246,8 +374,8 @@ services:
                         TZ: ${TIMEZONE}
                         WEBUI_PORT: 8980
                 volumes:
-                        - ${CONFIG_DIR}/qbittorrent:/config
-                        - ${DOWNLOAD_DIR}:/downloads
+                        - config-qbittorrent:/config
+                        - downloads:/downloads
                 ports:
                         - 8980:8980
                         - 6881:6881
@@ -271,17 +399,19 @@ services:
                 container_name: watch
                 image: lscr.io/linuxserver/jellyfin
                 restart: unless-stopped
+                mem_limit: 4096M
+                cpu_percent: 50
                 environment:
                         PUID: ${PUID}
                         PGID: ${PGID}
                         TZ: ${TIMEZONE}
                 volumes:
-                        - ${CONFIG_DIR}/jellyfin:/config
-                        - ${CONFIG_DIR}/jellyfin/cache:/cache
-                        - ${MEDIA_DIR}/Movies:/Movies
-                        - ${MEDIA_DIR}/Television Shows:/Television Shows
-                        - ${MEDIA_DIR}/Music:/Music
-                        - ${MEDIA_DIR}/Youtube:/Youtube
+                        - config-jellyfin:/config
+                        - config-jellyfin-cache:/cache
+                        - media-movies:/Movies
+                        - media-shows:/Television Shows
+                        - media-music:/Music
+                        - media-youtube:/Youtube
                 devices:
                         - /dev/dri/renderD128:/dev/dri/renderD128
                         - /dev/dri/card0:/dev/dri/card0
@@ -305,14 +435,19 @@ services:
                         PGID: ${PGID}
                         TZ: ${TIMEZONE}
                 volumes:
-                        - ${CONFIG_DIR}/syncthing:/config
-                        - ${SYNC_DIR}:/config/Sync
+                        - config-syncthing:/config
+                        - sync:/config/Sync
                 ports:
                         - 8384:8384
                         - 22000:22000
                         - 21027:21027/udp
                 networks:
                         - web
+                healthcheck:
+                        test: nc -z 127.0.0.1 8384 || exit 1
+                        interval: 30s
+                        timeout: 3s
+                        retries: 3
                 labels:
                         traefik.port: 8384
                         traefik.http.routers.sync.rule: Host(`sync.${DOMAIN}`)
@@ -329,7 +464,7 @@ services:
                         PGID: ${PGID}
                         TZ: ${TIMEZONE}
                 volumes:
-                        - ${MEDIA_DIR}/Books:/config
+                        - media-books:/config
                 ports:
                         - 8082:8080
                         - 8083:8081
@@ -351,8 +486,8 @@ services:
                         TZ: ${TIMEZONE}
                         DOCKER_MODS: linuxserver/calibre-web:calibre
                 volumes:
-                        - ${CONFIG_DIR}/calibre-web:/config
-                        - ${MEDIA_DIR}/Books:/books
+                        - config-calibre-web:/config
+                        - media-books:/books
                 ports:
                         - 8084:8083
                 networks:
@@ -376,11 +511,11 @@ services:
                 depends_on:
                         - mongo
                 volumes:
-                        - ${CONFIG_DIR}/youtube/appdata:/app/appdata
-                        - ${MEDIA_DIR}/Music:/app/audio
-                        - ${MEDIA_DIR}/Youtube:/app/video
-                        - ${CONFIG_DIR}/youtube/subscriptions:/app/subscriptions
-                        - ${CONFIG_DIR}/youtube/users:/app/users
+                        - config-youtubedl-appdata:/app/appdata
+                        - config-youtubedl-subscriptions:/app/subscriptions
+                        - config-youtubedl-users:/app/users
+                        - media-music:/app/audio
+                        - media-youtube:/app/video
                 ports:
                         - 8998:17442
                 networks:
@@ -391,8 +526,31 @@ services:
                         traefik.http.routers.youtube.rule: Host(`youtube.${DOMAIN}`)
                         plugsy.name: YoutubeDL Material
                         plugsy.category: Media
+                        plugsy.parents: MongoDB
                         plugsy.link: http://youtube.${DOMAIN}
 
+        mariadb:
+                image: lscr.io/linuxserver/mariadb
+                container_name: mariadb
+                restart: unless-stopped
+                volumes:
+                        - config-mariadb:/config
+                ports:
+                        - 3306:3306
+                environment:
+                        PUID: ${PUID}
+                        PGID: ${PGID}
+                        TZ: ${TIMEZONE}
+                        MYSQL_DATABASE: ${DATABASE}
+                        MYSQL_USER: ${DATABASE_USERNAME}
+                        MYSQL_PASSWORD: ${DATABASE_PASSWORD}
+                        MYSQL_ROOT_PASSWORD: ${DATABASE_PASSWORD}
+                networks:
+                        - internal
+                labels:
+                        traefik.enable: false
+                        plugsy.name: MariaDB
+                        plugsy.category: System
 
         mongo:
                 image: mongo
@@ -405,7 +563,7 @@ services:
                         - internal
                 restart: unless-stopped
                 volumes:
-                        - ${CONFIG_DIR}/mongo:/data/db
+                        - config-mongo:/data/db
                 labels:
                         traefik.enable: false
                         plugsy.name: MongoDB
