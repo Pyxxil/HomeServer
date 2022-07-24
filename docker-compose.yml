@@ -72,6 +72,11 @@ volumes:
                         type: none
                         device: ${CONFIG_DIR}/radarr
                         o: bind
+        config-readarr:
+                driver_opts:
+                        type: none
+                        device: ${CONFIG_DIR}/readarr
+                        o: bind
         config-sonarr:
                 driver_opts:
                         type: none
@@ -105,33 +110,38 @@ volumes:
         media-books:
                 driver_opts:
                         type: none
-                        device: ${MEDIA_DIR}/Books
+                        device: ${DATA_DIR}/Books
                         o: bind
         media-movies:
                 driver_opts:
                         type: none
-                        device: ${MEDIA_DIR}/Movies
+                        device: ${DATA_DIR}/Movies
                         o: bind
         media-music:
                 driver_opts:
                         type: none
-                        device: ${MEDIA_DIR}/Music
+                        device: ${DATA_DIR}/Music
                         o: bind
         media-shows:
                 driver_opts:
                         type: none
-                        device: ${MEDIA_DIR}/Television Shows
+                        device: ${DATA_DIR}/Television Shows
                         o: bind
         media-youtube:
                 driver_opts:
                         type: none
-                        device: ${MEDIA_DIR}/Youtube
+                        device: ${DATA_DIR}/Youtube
                         o: bind
         sync:
                 driver_opts:
                         type: none
                         device: ${SYNC_DIR}
                         o: bind
+
+x-common-variables: &env-vars
+        PUID: ${PUID}
+        PGID: ${PGID}
+        TZ: ${TIMEZONE}
 
 services:
         traefik:
@@ -213,10 +223,7 @@ services:
                         - config-heimdall:/config
                 ports:
                         - 83:80
-                environment:
-                        PUID: ${PUID}
-                        PGID: ${PGID}
-                        TZ: ${TIMEZONE}
+                environment: *env-vars
                 labels:
                         traefik.port: 83
                         traefik.http.routers.heimdall.rule: Host(`dash.${DOMAIN}`)
@@ -277,9 +284,7 @@ services:
                 depends_on:
                         - database
                 environment:
-                        PUID: ${PUID}
-                        PGID: ${PGID}
-                        TZ: ${TIMEZONE}
+                        <<: *env-vars
                         APP_URL: http://wiki.${DOMAIN}
                         DB_HOST: ${DATABASE_HOST}
                         DB_DATABASE: ${DATABASE}
@@ -304,10 +309,7 @@ services:
                 image: lscr.io/linuxserver/radarr:latest
                 container_name: radarr
                 restart: unless-stopped
-                environment:
-                        PUID: ${PUID}
-                        PGID: ${PGID}
-                        TZ: ${TIMEZONE}
+                environment: *env-vars
                 volumes:
                         - config-radarr:/config
                         - media-movies:/movies
@@ -327,10 +329,7 @@ services:
                 image: lscr.io/linuxserver/sonarr:latest
                 container_name: sonarr
                 restart: unless-stopped
-                environment:
-                        PUID: ${PUID}
-                        PGID: ${PGID}
-                        TZ: ${TIMEZONE}
+                environment: *env-vars
                 volumes:
                         - config-sonarr:/config
                         - media-shows:/shows
@@ -349,10 +348,7 @@ services:
         lidarr:
                 image: lscr.io/linuxserver/lidarr:latest
                 container_name: lidarr
-                environment:
-                        PUID: ${PUID}
-                        PGID: ${PGID}
-                        TZ: ${TIMEZONE}
+                environment: *env-vars
                 volumes:
                         - config-lidarr:/config
                         - media-music:/music
@@ -369,13 +365,30 @@ services:
                         plugsy.category: Media
                         plugsy.link: http://music.${DOMAIN}
 
+        readarr:
+                image: lscr.io/linuxserver/readarr:develop
+                container_name: readarr
+                environment: *env-vars
+                volumes:
+                        - config-readarr:/config
+                        - media-books:/books
+                        - downloads:/downloads
+                ports:
+                        - 5656:8787
+                restart: unless-stopped
+                networks:
+                        - web
+                labels:
+                        traefik.port: 5656
+                        traefik.http.routers.readarr.rule: Host(`books.${DOMAIN}`)
+                        plugsy.name: Readarr
+                        plugsy.category: Media
+                        plugsy.link: http://books.${DOMAIN}
+
         jackett:
                 image: lscr.io/linuxserver/jackett:latest
                 container_name: jackett
-                environment:
-                        PUID: ${PUID}
-                        PGID: ${PGID}
-                        TZ: ${TIMEZONE}
+                environment: *env-vars
                 volumes:
                         - config-jackett:/config
                         - downloads:/downloads
@@ -396,9 +409,7 @@ services:
                 container_name: qbittorrent
                 restart: unless-stopped
                 environment:
-                        PUID: ${PUID}
-                        PGID: ${PGID}
-                        TZ: ${TIMEZONE}
+                        <<: *env-vars
                         WEBUI_PORT: 8980
                 volumes:
                         - config-qbittorrent:/config
@@ -427,11 +438,10 @@ services:
                 image: lscr.io/linuxserver/jellyfin
                 restart: unless-stopped
                 mem_limit: 4096M
-                cpu_percent: 50
+                cpu_percent: 75
                 environment:
-                        PUID: ${PUID}
-                        PGID: ${PGID}
-                        TZ: ${TIMEZONE}
+                        <<: *env-vars
+                        DOCKER_MODS: linuxserver/mods:jellyfin-opencl-intel
                 volumes:
                         - config-jellyfin:/config
                         - config-jellyfin-cache:/cache
@@ -457,10 +467,7 @@ services:
                 container_name: sync
                 image: lscr.io/linuxserver/syncthing
                 restart: unless-stopped
-                environment:
-                        PUID: ${PUID}
-                        PGID: ${PGID}
-                        TZ: ${TIMEZONE}
+                environment: *env-vars
                 volumes:
                         - config-syncthing:/config
                         - sync:/config/Sync
@@ -486,10 +493,7 @@ services:
                 container_name: calibre
                 image: lscr.io/linuxserver/calibre
                 restart: unless-stopped
-                environment:
-                        PUID: ${PUID}
-                        PGID: ${PGID}
-                        TZ: ${TIMEZONE}
+                environment: *env-vars
                 volumes:
                         - media-books:/config
                 ports:
@@ -508,9 +512,7 @@ services:
                 image: lscr.io/linuxserver/calibre-web
                 restart: unless-stopped
                 environment:
-                        PUID: ${PUID}
-                        PGID: ${PGID}
-                        TZ: ${TIMEZONE}
+                        <<: *env-vars
                         DOCKER_MODS: linuxserver/calibre-web:calibre
                 volumes:
                         - config-calibre-web:/config
@@ -565,9 +567,7 @@ services:
                 ports:
                         - 3306:3306
                 environment:
-                        PUID: ${PUID}
-                        PGID: ${PGID}
-                        TZ: ${TIMEZONE}
+                        <<: *env-vars
                         MYSQL_DATABASE: ${DATABASE}
                         MYSQL_USER: ${DATABASE_USERNAME}
                         MYSQL_PASSWORD: ${DATABASE_PASSWORD}
