@@ -37,11 +37,6 @@ volumes:
                         type: none
                         device: ${CONFIG_DIR}/heimdall
                         o: bind
-        config-jackett:
-                driver_opts:
-                        type: none
-                        device: ${CONFIG_DIR}/jackett
-                        o: bind
         config-jellyfin:
                 driver_opts:
                         type: none
@@ -71,6 +66,11 @@ volumes:
                 driver_opts:
                         type: none
                         device: ${CONFIG_DIR}/portainer
+                        o: bind
+        config-prowlarr:
+                driver_opts:
+                        type: none
+                        device: ${CONFIG_DIR}/prowlarr
                         o: bind
         config-qbittorrent:
                 driver_opts:
@@ -257,9 +257,6 @@ services:
                 networks:
                         private_network:
                                 ipv4_address: 10.2.0.200
-                dns:
-                        - 127.0.0.1
-                        - 10.2.0.150
                 volumes:
                         - config-unbound:/opt/unbound/etc/unbound/
                 environment: *env-vars
@@ -449,24 +446,23 @@ services:
                         plugsy.category: Media
                         plugsy.link: http://request.${DOMAIN}/books
 
-        jackett:
-                image: lscr.io/linuxserver/jackett:latest
-                container_name: jackett
-                environment: *env-vars
-                volumes:
-                        - config-jackett:/config
-                        - downloads:/downloads
-                ports:
-                        - 9117:9117
+        prowlarr:
+                image: lscr.io/linuxserver/prowlarr:develop
+                container_name: prowlarr
                 restart: unless-stopped
+                environment: *env-vars
                 networks:
                         - web
+                volumes:
+                        - config-prowlarr:/config
+                ports:
+                        - 9696:9696
                 labels:
-                        traefik.port: 9117
-                        traefik.http.routers.jackett.rule: Host(`request.${DOMAIN}`) && PathPrefix(`/torrents`)
-                        plugsy.name: jackett
+                        traefik.port: 9696
+                        traefik.http.routers.prowlarr.rule: Host(`request.${DOMAIN}`)
+                        plugsy.name: Prowlarr
                         plugsy.category: Media
-                        plugsy.link: http://request.${DOMAIN}/torrents
+                        plugsy.link: http://request.${DOMAIN}
 
         qbittorrent:
                 image: lscr.io/linuxserver/qbittorrent:latest
