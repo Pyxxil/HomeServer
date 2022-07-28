@@ -5,6 +5,11 @@ networks:
                 external: true
         internal:
                 external: false
+        private_network:
+                ipam:
+                        driver: default
+                        config:
+                                - subnet: 10.2.0.0/24
 
 volumes:
         config-adguard:
@@ -21,6 +26,11 @@ volumes:
                 driver_opts:
                         type: none
                         device: ${CONFIG_DIR}/calibre-web
+                        o: bind
+        config-dnscrypt:
+                driver_opts:
+                        type: none
+                        device: ${CONFIG_DIR}/dnscrypt
                         o: bind
         config-heimdall:
                 driver_opts:
@@ -86,6 +96,11 @@ volumes:
                 driver_opts:
                         type: none
                         device: ${CONFIG_DIR}/syncthing
+                        o: bind
+        config-unbound:
+                driver_opts:
+                        type: none
+                        device: ${CONFIG_DIR}/unbound
                         o: bind
         config-youtubedl-appdata:
                 driver_opts:
@@ -166,8 +181,9 @@ services:
                 networks:
                         - web
                         - internal
+                        - private_network
                 healthcheck:
-                        test: ["CMD", "traefik", "healthcheck"]
+                        test: [ "CMD", "traefik", "healthcheck" ]
                         interval: 30s
                         timeout: 3s
                         retries: 3
@@ -231,14 +247,62 @@ services:
                         plugsy.category: System
                         plugsy.link: http://dash.${DOMAIN}
 
+        unbound:
+                image: mvance/unbound
+                container_name: unbound
+                hostname: unbound
+                restart: always
+                depends_on:
+                        - dnscrypt
+                networks:
+                        private_network:
+                                ipv4_address: 10.2.0.200
+                dns:
+                        - 127.0.0.1
+                        - 10.2.0.150
+                volumes:
+                        - config-unbound:/opt/unbound/etc/unbound/
+                environment: *env-vars
+                labels:
+                        traefik.enable: false
+                        plugsy.name: Unbound
+                        plugsy.category: Privacy
+
+        dnscrypt:
+                image: zquestz/dnscrypt-server:latest
+                container_name: dnscrypt
+                restart: always
+                command: "init -N ${DOMAIN} -E '10.2.0.150:5443'"
+                networks:
+                        private_network:
+                                ipv4_address: 10.2.0.150
+                ports:
+                        - 5443:5443/udp
+                        - 5443:5443/tcp
+                volumes:
+                        - config-dnscrypt:/opt/encrypted-dns/etc/keys
+                environment: *env-vars
+                labels:
+                        traefik.enable: false
+                        plugsy.name: DNSCrypt
+                        plugsy.category: Privacy
+
         adguard:
                 container_name: adguard
                 image: adguard/adguardhome
                 restart: always
+                depends_on:
+                        - unbound
+                        - dnscrypt
                 volumes:
                         - config-adguard:/opt/adguardhome/conf
+                dns:
+                        - 127.0.0.1
+                        - 10.2.0.200
+                        - 10.2.0.150
                 networks:
-                        - web
+                        private_network:
+                                ipv4_address: 10.2.0.100
                 ports:
                         - 53:53/tcp
                         - 53:53/udp
@@ -320,10 +384,10 @@ services:
                         - web
                 labels:
                         traefik.port: 7878
-                        traefik.http.routers.radarr.rule: Host(`movies.${DOMAIN}`)
+                        traefik.http.routers.radarr.rule: Host(`request.${DOMAIN}`) && PathPrefix(`/movies`)
                         plugsy.name: Radarr
                         plugsy.category: Media
-                        plugsy.link: http://movies.${DOMAIN}
+                        plugsy.link: http://request.${DOMAIN}/movies
 
         sonarr:
                 image: lscr.io/linuxserver/sonarr:latest
@@ -340,10 +404,10 @@ services:
                         - web
                 labels:
                         traefik.port: 8989
-                        traefik.http.routers.sonarr.rule: Host(`tv.${DOMAIN}`)
+                        traefik.http.routers.sonarr.rule: Host(`request.${DOMAIN}`) && PathPrefix(`/shows`)
                         plugsy.name: Sonarr
                         plugsy.category: Media
-                        plugsy.link: http://tv.${DOMAIN}
+                        plugsy.link: http://request.${DOMAIN}/shows
 
         lidarr:
                 image: lscr.io/linuxserver/lidarr:latest
@@ -360,10 +424,10 @@ services:
                         - web
                 labels:
                         traefik.port: 6767
-                        traefik.http.routers.lidarr.rule: Host(`music.${DOMAIN}`)
+                        traefik.http.routers.lidarr.rule: Host(`request.${DOMAIN}`) && PathPrefix(`/music`)
                         plugsy.name: Lidarr
                         plugsy.category: Media
-                        plugsy.link: http://music.${DOMAIN}
+                        plugsy.link: http://request.${DOMAIN}/music
 
         readarr:
                 image: lscr.io/linuxserver/readarr:develop
@@ -380,10 +444,10 @@ services:
                         - web
                 labels:
                         traefik.port: 5656
-                        traefik.http.routers.readarr.rule: Host(`books.${DOMAIN}`)
+                        traefik.http.routers.readarr.rule: Host(`request.${DOMAIN}`) && PathPrefix(`/books`)
                         plugsy.name: Readarr
                         plugsy.category: Media
-                        plugsy.link: http://books.${DOMAIN}
+                        plugsy.link: http://request.${DOMAIN}/books
 
         jackett:
                 image: lscr.io/linuxserver/jackett:latest
@@ -399,10 +463,10 @@ services:
                         - web
                 labels:
                         traefik.port: 9117
-                        traefik.http.routers.jackett.rule: Host(`jackett.${DOMAIN}`)
+                        traefik.http.routers.jackett.rule: Host(`request.${DOMAIN}`) && PathPrefix(`/torrents`)
                         plugsy.name: jackett
                         plugsy.category: Media
-                        plugsy.link: http://jackett.${DOMAIN}
+                        plugsy.link: http://request.${DOMAIN}/torrents
 
         qbittorrent:
                 image: lscr.io/linuxserver/qbittorrent:latest
@@ -431,7 +495,7 @@ services:
                         traefik.http.services.qbittorrent.loadbalancer.passhostheader: false
                         plugsy.name: qBittorrent
                         plugsy.category: Media
-                        plugsy.link: http://torrent.${DOMAIN}
+                        plugsy.link: http://torrent.${DOMAIN}/
 
         watch:
                 container_name: watch
@@ -531,7 +595,7 @@ services:
         ytdl_material:
                 image: tzahi12345/youtubedl-material:latest
                 container_name: YoutubeDL
-                environment: 
+                environment:
                         ALLOW_CONFIG_MUTATIONS: 'true'
                         ytdl_mongodb_connection_string: 'mongodb://mongo:27017'
                         ytdl_use_local_db: 'false'
