@@ -1,4 +1,7 @@
 .env
+.vscode
 
 api/target/
-config/
+stats/target
+
+python-dnsstamps/
