@@ -239,7 +239,11 @@ services:
                 ports:
                         - 9090:9090
                 healthcheck:
-                        test: [ "CMD", "wget --spider http://localhost:9090 || exit 1" ]
+                        test:
+                                [
+                                        "CMD-SHELL",
+                                        "wget --spider http://localhost:9090 || exit 1"
+                                ]
                         interval: 10s
                         timeout: 15s
                         retries: 10
@@ -268,7 +272,11 @@ services:
                         - config-grafana-data:/var/lib/grafana
                         - config-grafana-home:/usr/share/grafana
                 healthcheck:
-                        test: [ "CMD", "wget --spider http://localhost:3000 || exit 1" ]
+                        test:
+                                [
+                                        "CMD-SHELL",
+                                        "wget --spider http://localhost:3000 || exit 1"
+                                ]
                         interval: 10s
                         timeout: 15s
                         retries: 10
@@ -290,6 +298,12 @@ services:
                         - /var/run/docker.sock:/var/run/docker.sock
                 ports:
                         - 8000:3000
+                healthcheck:
+                        test: [ "CMD-SHELL", "netstat -pant | grep :3000" ]
+                        interval: 1m30s
+                        timeout: 30s
+                        retries: 5
+                        start_period: 30s
                 labels:
                         traefik.port: 8000
                         traefik.http.routers.plugsy.rule: Host(`plugins.${DOMAIN}`)
@@ -327,6 +341,12 @@ services:
                 ports:
                         - 83:80
                 environment: *env-vars
+                healthcheck:
+                        test: [ "CMD-SHELL", "netstat -pant | grep :80" ]
+                        interval: 1m30s
+                        timeout: 30s
+                        retries: 5
+                        start_period: 30s
                 labels:
                         traefik.port: 83
                         traefik.http.routers.heimdall.rule: Host(`dash.${DOMAIN}`)
@@ -473,6 +493,11 @@ services:
                         QBITTORRENT_HOST: request.${DOMAIN}
                         QBITTORRENT_USERNAME: ${QBITTORRENT_USERNAME}
                         QBITTORRENT_PASSWORD: ${QBITTORRENT_PASSWORD}
+                healthcheck:
+                        test: [ "CMD-SHELL", "curl --fail localhost:17871/metrics" ]
+                        interval: 45s
+                        timeout: 30s
+                        retries: 3
                 labels:
                         traefik.enable: false
                         plugsy.name: qBittorrent Exporter
@@ -492,6 +517,11 @@ services:
                         - 9619:9100
                 volumes:
                         - '/:/host:ro,rslave'
+                healthcheck:
+                        test: [ "CMD-SHELL", "/bin/netstat -pant | /bin/grep ':9100'" ]
+                        interval: 45s
+                        timeout: 30s
+                        retries: 3
                 labels:
                         traefik.enable: false
                         plugsy.name: Host Exporter
@@ -513,6 +543,11 @@ services:
                 networks:
                         - web
                         - internal
+                healthcheck:
+                        test: [ "CMD-SHELL", "curl --fail localhost" ]
+                        interval: 45s
+                        timeout: 30s
+                        retries: 3
                 labels:
                         traefik.port: 8081
                         traefik.http.routers.cloud.rule: Host(`cloud.${DOMAIN}`)
@@ -541,6 +576,16 @@ services:
                 networks:
                         - web
                         - internal
+                healthcheck:
+                        test:
+                                [
+                                        "CMD-SHELL",
+                                        "curl -s localhost/status | grep -vi 'false'"
+                                ]
+                        interval: 1m30s
+                        timeout: 30s
+                        retries: 5
+                        start_period: 30s
                 labels:
                         traefik.port: 6875
                         traefik.http.routers.wiki.rule: Host(`wiki.${DOMAIN}`)
@@ -567,6 +612,12 @@ services:
                         - sync:/sync
                 ports:
                         - 8443:8443
+                healthcheck:
+                        test: [ "CMD-SHELL", "curl localhost:3000" ]
+                        interval: 1m30s
+                        timeout: 30s
+                        retries: 5
+                        start_period: 30s
                 labels:
                         traefik.port: 8443
                         traefik.http.routers.code.rule: Host(`dev.${DOMAIN}`)
@@ -587,6 +638,11 @@ services:
                         - 7878:7878
                 networks:
                         - web
+                healthcheck:
+                        test: [ "CMD-SHELL", "curl --fail localhost:7878" ]
+                        interval: 45s
+                        timeout: 30s
+                        retries: 3
                 labels:
                         traefik.port: 7878
                         traefik.http.routers.radarr.rule: Host(`request.${DOMAIN}`) && PathPrefix(`/movies`)
@@ -607,6 +663,11 @@ services:
                         - 8989:8989
                 networks:
                         - web
+                healthcheck:
+                        test: [ "CMD-SHELL", "curl --fail localhost:8989" ]
+                        interval: 45s
+                        timeout: 30s
+                        retries: 3
                 labels:
                         traefik.port: 8989
                         traefik.http.routers.sonarr.rule: Host(`request.${DOMAIN}`) && PathPrefix(`/shows`)
@@ -627,6 +688,11 @@ services:
                 restart: unless-stopped
                 networks:
                         - web
+                healthcheck:
+                        test: [ "CMD-SHELL", "curl --fail localhost:8686" ]
+                        interval: 45s
+                        timeout: 30s
+                        retries: 3
                 labels:
                         traefik.port: 6767
                         traefik.http.routers.lidarr.rule: Host(`request.${DOMAIN}`) && PathPrefix(`/music`)
@@ -647,6 +713,11 @@ services:
                 restart: unless-stopped
                 networks:
                         - web
+                healthcheck:
+                        test: [ "CMD-SHELL", "curl --fail localhost:8787" ]
+                        interval: 45s
+                        timeout: 30s
+                        retries: 3
                 labels:
                         traefik.port: 5656
                         traefik.http.routers.readarr.rule: Host(`request.${DOMAIN}`) && PathPrefix(`/books`)
@@ -677,6 +748,11 @@ services:
                 networks:
                         - internal
                         - web
+                healthcheck:
+                        test: [ "CMD-SHELL", "curl --fail localhost:17442" ]
+                        interval: 45s
+                        timeout: 30s
+                        retries: 3
                 labels:
                         traefik.port: 8998
                         traefik.http.routers.youtube.rule: Host(`youtube.${DOMAIN}`)
@@ -696,6 +772,11 @@ services:
                         - config-prowlarr:/config
                 ports:
                         - 9696:9696
+                healthcheck:
+                        test: [ "CMD-SHELL", "curl --fail localhost:9696" ]
+                        interval: 45s
+                        timeout: 30s
+                        retries: 3
                 labels:
                         traefik.port: 9696
                         traefik.http.routers.prowlarr.rule: Host(`request.${DOMAIN}`) && PathPrefix(`/indexers`)
@@ -719,6 +800,12 @@ services:
                         - 6881:6881/udp
                 networks:
                         - web
+                healthcheck:
+                        test: [ "CMD-SHELL", "curl --fail localhost:8980" ]
+                        interval: 1m30s
+                        timeout: 30s
+                        retries: 5
+                        start_period: 30s
                 labels:
                         traefik.port: 8980
                         traefik.http.routers.qbittorrent.rule: Host(`request.${DOMAIN}`)
@@ -806,6 +893,12 @@ services:
                         - 8083:8081
                 networks:
                         - web
+                healthcheck:
+                        test: [ "CMD-SHELL", "curl --fail localhost:8080" ]
+                        interval: 1m30s
+                        timeout: 30s
+                        retries: 5
+                        start_period: 30s
                 labels:
                         traefik.port: 8082
                         traefik.http.routers.calibre.rule: Host(`calibre.${DOMAIN}`)
@@ -826,6 +919,12 @@ services:
                         - 8084:8083
                 networks:
                         - web
+                healthcheck:
+                        test: [ "CMD-SHELL", "curl --fail localhost:8083" ]
+                        interval: 1m30s
+                        timeout: 30s
+                        retries: 5
+                        start_period: 30s
                 labels:
                         traefik.port: 8084
                         traefik.http.routers.read.rule: Host(`read.${DOMAIN}`)
@@ -849,6 +948,11 @@ services:
                         MYSQL_ROOT_PASSWORD: ${DATABASE_PASSWORD}
                 networks:
                         - internal
+                healthcheck:
+                        test: "/usr/bin/mysql --user=${DATABASE_USERNAME} --password=${DATABASE_PASSWORD} --execute \"SHOW DATABASES;\""
+                        interval: 3s
+                        timeout: 1s
+                        retries: 5
                 labels:
                         traefik.enable: false
                         plugsy.name: MariaDB
@@ -866,6 +970,12 @@ services:
                 restart: unless-stopped
                 volumes:
                         - config-mongo:/data/db
+                healthcheck:
+                        test: echo 'db.runCommand("ping").ok' | mongo mongo:27017/test --quiet
+                        interval: 10s
+                        timeout: 10s
+                        retries: 5
+                        start_period: 40s
                 labels:
                         traefik.enable: false
                         plugsy.name: MongoDB
