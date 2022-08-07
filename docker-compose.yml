@@ -1,5 +1,16 @@
 version: '3.7'
 
+x-common-env-variables:
+        &env-vars
+        PUID: ${PUID}
+        PGID: ${PGID}
+        TZ: ${TIMEZONE}
+
+x-common-driver-variables:
+        &driver-opts
+        type: none
+        o: bind
+
 networks:
         web:
                 external: true
@@ -14,182 +25,162 @@ networks:
 volumes:
         config-adguard:
                 driver_opts:
-                        type: none
+                        <<: *driver-opts
                         device: ${CONFIG_DIR}/adguard
-                        o: bind
         config-bookstack:
                 driver_opts:
-                        type: none
+                        <<: *driver-opts
                         device: ${CONFIG_DIR}/bookstack
-                        o: bind
         config-calibre-web:
                 driver_opts:
-                        type: none
+                        <<: *driver-opts
                         device: ${CONFIG_DIR}/calibre-web
-                        o: bind
         config-code:
                 driver_opts:
-                        type: none
+                        <<: *driver-opts
                         device: ${CONFIG_DIR}/code
-                        o: bind
         config-dnscrypt:
                 driver_opts:
-                        type: none
+                        <<: *driver-opts
                         device: ${CONFIG_DIR}/dnscrypt
-                        o: bind
+        config-doplarr:
+                driver_opts:
+                        <<: *driver-opts
+                        device: ${CONFIG_DIR}/doplarr
         config-grafana:
                 driver_opts:
-                        type: none
+                        <<: *driver-opts
                         device: ${CONFIG_DIR}/grafana/config
-                        o: bind
         config-grafana-data:
                 driver_opts:
-                        type: none
+                        <<: *driver-opts
                         device: ${CONFIG_DIR}/grafana/data
-                        o: bind
         config-grafana-home:
                 driver_opts:
-                        type: none
+                        <<: *driver-opts
                         device: ${CONFIG_DIR}/grafana/home
-                        o: bind
         config-heimdall:
                 driver_opts:
-                        type: none
+                        <<: *driver-opts
                         device: ${CONFIG_DIR}/heimdall
-                        o: bind
         config-jellyfin:
                 driver_opts:
-                        type: none
+                        <<: *driver-opts
                         device: ${CONFIG_DIR}/jellyfin
-                        o: bind
         config-jellyfin-cache:
                 driver_opts:
-                        type: none
+                        <<: *driver-opts
                         device: ${CONFIG_DIR}/jellyfin/cache
-                        o: bind
         config-lidarr:
                 driver_opts:
-                        type: none
+                        <<: *driver-opts
                         device: ${CONFIG_DIR}/lidarr
-                        o: bind
         config-mariadb:
                 driver_opts:
-                        type: none
+                        <<: *driver-opts
                         device: ${CONFIG_DIR}/mariadb
-                        o: bind
         config-mongo:
                 driver_opts:
-                        type: none
+                        <<: *driver-opts
                         device: ${CONFIG_DIR}/mongo
-                        o: bind
         config-portainer:
                 driver_opts:
-                        type: none
+                        <<: *driver-opts
                         device: ${CONFIG_DIR}/portainer
-                        o: bind
         config-prometheus:
                 driver_opts:
-                        type: none
+                        <<: *driver-opts
                         device: ${CONFIG_DIR}/prometheus
-                        o: bind
         config-prowlarr:
                 driver_opts:
-                        type: none
+                        <<: *driver-opts
                         device: ${CONFIG_DIR}/prowlarr
-                        o: bind
         config-qbittorrent:
                 driver_opts:
-                        type: none
+                        <<: *driver-opts
                         device: ${CONFIG_DIR}/qbittorrent
-                        o: bind
         config-radarr:
                 driver_opts:
-                        type: none
+                        <<: *driver-opts
                         device: ${CONFIG_DIR}/radarr
-                        o: bind
         config-readarr:
                 driver_opts:
-                        type: none
+                        <<: *driver-opts
                         device: ${CONFIG_DIR}/readarr
-                        o: bind
         config-sonarr:
                 driver_opts:
-                        type: none
+                        <<: *driver-opts
                         device: ${CONFIG_DIR}/sonarr
-                        o: bind
         config-syncthing:
                 driver_opts:
-                        type: none
+                        <<: *driver-opts
                         device: ${CONFIG_DIR}/syncthing
-                        o: bind
         config-unbound:
                 driver_opts:
-                        type: none
+                        <<: *driver-opts
                         device: ${CONFIG_DIR}/unbound
-                        o: bind
         config-vaultwarden:
                 driver_opts:
-                        type: none
+                        <<: *driver-opts
                         device: ${CONFIG_DIR}/vaultwarden
-                        o: bind
         config-youtubedl-appdata:
                 driver_opts:
-                        type: none
+                        <<: *driver-opts
                         device: ${CONFIG_DIR}/youtube/appdata
-                        o: bind
         config-youtubedl-subscriptions:
                 driver_opts:
-                        type: none
+                        <<: *driver-opts
                         device: ${CONFIG_DIR}/youtube/subscriptions
-                        o: bind
         config-youtubedl-users:
                 driver_opts:
-                        type: none
+                        <<: *driver-opts
                         device: ${CONFIG_DIR}/youtube/users
-                        o: bind
         downloads:
                 driver_opts:
-                        type: none
+                        <<: *driver-opts
                         device: ${DOWNLOAD_DIR}
-                        o: bind
         media-books:
                 driver_opts:
-                        type: none
+                        <<: *driver-opts
                         device: ${DATA_DIR}/Books
-                        o: bind
         media-movies:
                 driver_opts:
-                        type: none
+                        <<: *driver-opts
                         device: ${DATA_DIR}/Movies
-                        o: bind
         media-music:
                 driver_opts:
-                        type: none
+                        <<: *driver-opts
                         device: ${DATA_DIR}/Music
-                        o: bind
         media-shows:
                 driver_opts:
-                        type: none
+                        <<: *driver-opts
                         device: ${DATA_DIR}/Television Shows
-                        o: bind
         media-youtube:
                 driver_opts:
-                        type: none
+                        <<: *driver-opts
                         device: ${DATA_DIR}/Youtube
-                        o: bind
         sync:
                 driver_opts:
-                        type: none
+                        <<: *driver-opts
                         device: ${SYNC_DIR}
-                        o: bind
-
-x-common-variables:
-        &env-vars
-        PUID: ${PUID}
-        PGID: ${PGID}
-        TZ: ${TIMEZONE}
 
 services:
+        # ###
+        #    ,---,                            ____                        
+        #   '  .' \            ,---,        ,'  , `.  ,--,                
+        #  /  ;    '.        ,---.'|     ,-+-,.' _ |,--.'|         ,---,  
+        # :  :       \       |   | :  ,-+-. ;   , |||  |,      ,-+-. /  | 
+        # :  |   /\   \      |   | | ,--.'|'   |  ||`--'_     ,--.'|'   | 
+        # |  :  ' ;.   :   ,--.__| ||   |  ,', |  |,,' ,'|   |   |  ,"' | 
+        # |  |  ;/  \   \ /   ,'   ||   | /  | |--' '  | |   |   | /  | | 
+        # '  :  | \  \ ,'.   '  /  ||   : |  | ,    |  | :   |   | |  | | 
+        # |  |  '  '--'  '   ; |:  ||   : |  |/     '  : |__ |   | |  |/  
+        # |  :  :        |   | '/  '|   | |`-'      |  | '.'||   | |--'   
+        # |  | ,'        |   :    :||   ;/          ;  :    ;|   |/       
+        # `--''           \   \  /  '---'           |  ,   / '---'        
+        #                  `----'                    ---`-'               
+        ###
+
         traefik:
                 container_name: traefik
                 image: traefik:latest
@@ -198,7 +189,6 @@ services:
                         - "--api=true"
                         - "--api.dashboard=true"
                         - "--entrypoints.http.address=:80"
-                        - "--log.level=DEBUG"
                         - "--ping=true"
                         - "--metrics.prometheus=true"
                         - "--providers.docker=true"
@@ -224,6 +214,65 @@ services:
                         traefik.http.routers.dashboard.service: api@internal
                         plugsy.name: Traefik
                         plugsy.category: System
+
+        plugsy:
+                container_name: plugsy
+                image: plugsy/core
+                restart: unless-stopped
+                networks:
+                        - web
+                volumes:
+                        - /var/run/docker.sock:/var/run/docker.sock
+                ports:
+                        - 8000:3000
+                healthcheck:
+                        test: [ "CMD-SHELL", "netstat -pant | grep :3000" ]
+                        interval: 1m30s
+                        timeout: 30s
+                        retries: 5
+                        start_period: 30s
+                labels:
+                        traefik.port: 8000
+                        traefik.http.routers.plugsy.rule: Host(`plugins.${DOMAIN}`)
+
+        portainer:
+                image: portainer/portainer-ce
+                container_name: portainer
+                restart: unless-stopped
+                security_opt:
+                        - no-new-privileges:true
+                volumes:
+                        - /var/run/docker.sock:/var/run/docker.sock
+                        - config-portainer:/data
+                ports:
+                        - 9000:9000
+                networks:
+                        - web
+                        - internal
+                labels:
+                        traefik.port: 9000
+                        traefik.http.routers.portainer.rule: Host(`portainer.${DOMAIN}`)
+                        traefik.http.services.portainer.loadbalancer.server.port: 9000
+                        plugsy.name: Portainer
+                        plugsy.category: System
+                        plugsy.link: http://portainer.${DOMAIN}
+
+        ###
+        #           ____                                                               
+        #         ,'  , `.             ___                                             
+        #      ,-+-,.' _ |           ,--.'|_             ,--,                          
+        #   ,-+-. ;   , ||           |  | :,'   __  ,-.,--.'|                          
+        #  ,--.'|'   |  ;|           :  : ' : ,' ,'/ /||  |,                .--.--.    
+        # |   |  ,', |  ':  ,---.  .;__,'  /  '  | |' |`--'_       ,---.   /  /    '   
+        # |   | /  | |  || /     \ |  |   |   |  |   ,',' ,'|     /     \ |  :  /`./   
+        # '   | :  | :  |,/    /  |:__,'| :   '  :  /  '  | |    /    / ' |  :  ;_     
+        # ;   . |  ; |--'.    ' / |  '  : |__ |  | '   |  | :   .    ' /   \  \    `.  
+        # |   : |  | ,   '   ;   /|  |  | '.'|;  : |   '  : |__ '   ; :__   `----.   \ 
+        # |   : '  |/    '   |  / |  ;  :    ;|  , ;   |  | '.'|'   | '.'| /  /`--'  / 
+        # ;   | |`-'     |   :    |  |  ,   /  ---'    ;  :    ;|   :    :'--'.     /  
+        # |   ;/          \   \  /    ---`-'           |  ,   /  \   \  /   `--'---'   
+        # '---'            `----'                       ---`-'    `----'             
+        ###
 
         prometheus:
                 image: prom/prometheus
@@ -288,47 +337,77 @@ services:
                         plugsy.category: Metrics
                         plugsy.link: http://metrics.${DOMAIN}
 
-        plugsy:
-                container_name: plugsy
-                image: plugsy/core
+        adguard_exporter:
+                image: ebrianne/adguard-exporter
+                container_name: adguard-exporter
                 restart: unless-stopped
                 networks:
                         - web
-                volumes:
-                        - /var/run/docker.sock:/var/run/docker.sock
+                depends_on:
+                        - adguard
                 ports:
-                        - 8000:3000
-                healthcheck:
-                        test: [ "CMD-SHELL", "netstat -pant | grep :3000" ]
-                        interval: 1m30s
-                        timeout: 30s
-                        retries: 5
-                        start_period: 30s
+                        - 9617:9617
+                environment:
+                        adguard_protocol: http
+                        adguard_hostname: dns.${DOMAIN}
+                        adguard_username: ${ADGUARD_USERNAME}
+                        adguard_password: ${ADGUARD_PASSWORD}
+                        server_port: 9617
+                        interval: 10s
+                        log_limit: 10000
                 labels:
-                        traefik.port: 8000
-                        traefik.http.routers.plugsy.rule: Host(`plugins.${DOMAIN}`)
+                        traefik.enable: false
+                        plugsy.name: AdGuard Exporter
+                        plugsy.category: Metrics
+                        plugsy.parents: AdGuard
 
-        portainer:
-                image: portainer/portainer-ce
-                container_name: portainer
-                restart: unless-stopped
-                security_opt:
-                        - no-new-privileges:true
-                volumes:
-                        - /var/run/docker.sock:/var/run/docker.sock
-                        - config-portainer:/data
-                ports:
-                        - 9000:9000
+        qbittorrent-exporter:
+                image: caseyscarborough/qbittorrent-exporter
+                container_name: qbittorrent-exporter
+                depends_on:
+                        - qbittorrent
                 networks:
                         - web
-                        - internal
+                ports:
+                        - 9618:17871
+                environment:
+                        QBITTORRENT_PORT: 8980
+                        QBITTORRENT_HOST: qbittorrent
+                        QBITTORRENT_USERNAME: ${QBITTORRENT_USERNAME}
+                        QBITTORRENT_PASSWORD: ${QBITTORRENT_PASSWORD}
+                healthcheck:
+                        test: [ "CMD-SHELL", "curl --fail localhost:17871/metrics" ]
+                        interval: 45s
+                        timeout: 30s
+                        retries: 3
                 labels:
-                        traefik.port: 9000
-                        traefik.http.routers.portainer.rule: Host(`portainer.${DOMAIN}`)
-                        traefik.http.services.portainer.loadbalancer.server.port: 9000
-                        plugsy.name: Portainer
-                        plugsy.category: System
-                        plugsy.link: http://portainer.${DOMAIN}
+                        traefik.enable: false
+                        plugsy.name: qBittorrent Exporter
+                        plugsy.category: Metrics
+                        plugsy.parents: qBittorrent
+
+        node_exporter:
+                image: quay.io/prometheus/node-exporter
+                container_name: node-exporter
+                command:
+                        - '--path.rootfs=/host'
+                networks:
+                        - web
+                pid: host
+                restart: unless-stopped
+                ports:
+                        - 9619:9100
+                volumes:
+                        - '/:/host:ro,rslave'
+                healthcheck:
+                        test: [ "CMD-SHELL", "/bin/netstat -pant | /bin/grep ':9100'" ]
+                        interval: 45s
+                        timeout: 30s
+                        retries: 3
+                labels:
+                        traefik.enable: false
+                        plugsy.name: Host Exporter
+                        plugsy.category: Metrics
 
         heimdall:
                 image: lscr.io/linuxserver/heimdall
@@ -375,6 +454,23 @@ services:
                         plugsy.name: Vaultwarden
                         plugsy.category: System
                         plugsy.link: http://vault.${DOMAIN}
+
+        ###
+        #                       ,--.             
+        #     ,---,           ,--.'|  .--.--.    
+        #   .'  .' `\     ,--,:  : | /  /    '.  
+        # ,---.'     \ ,`--.'`|  ' :|  :  /`. /  
+        # |   |  .`\  ||   :  :  | |;  |  |--`   
+        # :   : |  '  |:   |   \ | :|  :  ;_     
+        # |   ' '  ;  :|   : '  '; | \  \    `.  
+        # '   | ;  .  |'   ' ;.    ;  `----.   \ 
+        # |   | :  |  '|   | | \   |  __ \  \  | 
+        # '   : | /  ; '   : |  ; .' /  /`--'  / 
+        # |   | '` ,/  |   | '`--'  '--'.     /  
+        # ;   :  .'    '   : |        `--'---'   
+        # |   ,.'      ;   |.'                   
+        # '---'        '---'                     
+        ###
 
         unbound:
                 image: mvance/unbound
@@ -457,76 +553,6 @@ services:
                         plugsy.category: Privacy
                         plugsy.parents: Unbound,DNSCrypt
 
-        adguard_exporter:
-                image: ebrianne/adguard-exporter
-                container_name: adguard-exporter
-                restart: unless-stopped
-                networks:
-                        - web
-                depends_on:
-                        - adguard
-                ports:
-                        - 9617:9617
-                environment:
-                        adguard_protocol: http
-                        adguard_hostname: dns.${DOMAIN}
-                        adguard_username: ${ADGUARD_USERNAME}
-                        adguard_password: ${ADGUARD_PASSWORD}
-                        server_port: 9617
-                        interval: 10s
-                        log_limit: 10000
-                labels:
-                        traefik.enable: false
-                        plugsy.name: AdGuard Exporter
-                        plugsy.category: Metrics
-                        plugsy.parents: AdGuard
-
-        qbittorrent-exporter:
-                image: caseyscarborough/qbittorrent-exporter
-                container_name: qbittorrent-exporter
-                networks:
-                        - web
-                ports:
-                        - 9618:17871
-                environment:
-                        QBITTORRENT_PORT: 80
-                        QBITTORRENT_HOST: request.${DOMAIN}
-                        QBITTORRENT_USERNAME: ${QBITTORRENT_USERNAME}
-                        QBITTORRENT_PASSWORD: ${QBITTORRENT_PASSWORD}
-                healthcheck:
-                        test: [ "CMD-SHELL", "curl --fail localhost:17871/metrics" ]
-                        interval: 45s
-                        timeout: 30s
-                        retries: 3
-                labels:
-                        traefik.enable: false
-                        plugsy.name: qBittorrent Exporter
-                        plugsy.category: Metrics
-                        plugsy.parents: qBittorrent
-
-        node_exporter:
-                image: quay.io/prometheus/node-exporter
-                container_name: node-exporter
-                command:
-                        - '--path.rootfs=/host'
-                networks:
-                        - web
-                pid: host
-                restart: unless-stopped
-                ports:
-                        - 9619:9100
-                volumes:
-                        - '/:/host:ro,rslave'
-                healthcheck:
-                        test: [ "CMD-SHELL", "/bin/netstat -pant | /bin/grep ':9100'" ]
-                        interval: 45s
-                        timeout: 30s
-                        retries: 3
-                labels:
-                        traefik.enable: false
-                        plugsy.name: Host Exporter
-                        plugsy.category: Metrics
-
         cloud:
                 container_name: cloud
                 image: nextcloud
@@ -561,7 +587,7 @@ services:
                 image: lscr.io/linuxserver/bookstack
                 restart: unless-stopped
                 depends_on:
-                        - database
+                        - mariadb
                 environment:
                         <<: *env-vars
                         APP_URL: http://wiki.${DOMAIN}
@@ -624,6 +650,23 @@ services:
                         plugsy.name: Code Server
                         plugsy.category: Cloud
                         plugsy.link: http://dev.${DOMAIN}
+
+        ###
+        #           ____                                            
+        #         ,'  , `.                                          
+        #      ,-+-,.' _ |               ,---,  ,--,                
+        #   ,-+-. ;   , ||             ,---.'|,--.'|                
+        #  ,--.'|'   |  ;|             |   | :|  |,                 
+        # |   |  ,', |  ':  ,---.      |   | |`--'_      ,--.--.    
+        # |   | /  | |  || /     \   ,--.__| |,' ,'|    /       \   
+        # '   | :  | :  |,/    /  | /   ,'   |'  | |   .--.  .-. |  
+        # ;   . |  ; |--'.    ' / |.   '  /  ||  | :    \__\/: . .  
+        # |   : |  | ,   '   ;   /|'   ; |:  |'  : |__  ," .--.; |  
+        # |   : '  |/    '   |  / ||   | '/  '|  | '.'|/  /  ,.  |  
+        # ;   | |`-'     |   :    ||   :    :|;  :    ;  :   .'   \ 
+        # |   ;/          \   \  /  \   \  /  |  ,   /|  ,     .-./ 
+        # '---'            `----'    `----'    ---`-'  `--`---'     
+        ###
 
         radarr:
                 image: lscr.io/linuxserver/radarr:latest
@@ -761,6 +804,31 @@ services:
                         plugsy.parents: MongoDB
                         plugsy.link: http://youtube.${DOMAIN}
 
+        doplarr:
+                image: lscr.io/linuxserver/doplarr:latest
+                container_name: doplarr
+                restart: unless-stopped
+                networks:
+                        - web
+                environment:
+                        <<: *env-vars
+                        DISCORD__TOKEN: ${DISCORD_TOKEN}
+                        RADARR__API: ${RADARR_API_KEY}
+                        RADARR__URL: http://radarr:7878/movies
+                        RADARR__QUALITY_PROFILE: Any
+                        SONARR__API: ${SONARR_API_KEY}
+                        SONARR__URL: http://sonarr:8989/shows
+                        SONARR__QUALITY_PROFILE: Any
+                        DISCORD__MAX_RESULTS: 25
+                        DISCORD__REQUESTED_MSG_STYLE: :embed
+                        LOG_LEVEL: :info
+                volumes:
+                        - config-doplarr:/config
+                labels:
+                        traefik.enable: false
+                        plugsy.name: Doplarr
+                        plugsy.category: Media
+
         prowlarr:
                 image: lscr.io/linuxserver/prowlarr:develop
                 container_name: prowlarr
@@ -881,6 +949,22 @@ services:
                         plugsy.category: Cloud
                         plugsy.link: http://sync.${DOMAIN}
 
+        ###
+        #    ,---,.                           ,-.            
+        # ,'  .'  \                      ,--/ /|            
+        # ,---.' .' |   ,---.     ,---.  ,--. :/ |            
+        # |   |  |: |  '   ,'\   '   ,'\ :  : ' /  .--.--.    
+        # :   :  :  / /   /   | /   /   ||  '  /  /  /    '   
+        # :   |    ; .   ; ,. :.   ; ,. :'  |  : |  :  /`./   
+        # |   :     \'   | |: :'   | |: :|  |   \|  :  ;_     
+        # |   |   . |'   | .; :'   | .; :'  : |. \\  \    `.  
+        # '   :  '; ||   :    ||   :    ||  | ' \ \`----.   \ 
+        # |   |  | ;  \   \  /  \   \  / '  : |--'/  /`--'  / 
+        # |   :   /    `----'    `----'  ;  |,'  '--'.     /  
+        # |   | ,'                       '--'      `--'---'   
+        # `----'                                           
+        ###
+
         calibre:
                 container_name: calibre
                 image: lscr.io/linuxserver/calibre
@@ -931,6 +1015,22 @@ services:
                         plugsy.name: Calibre Web
                         plugsy.category: Media
                         plugsy.link: http://read.${DOMAIN}
+
+        ###
+        #     ,---,                   ___                                                                         
+        #   .'  .' `\               ,--.'|_               ,---,                                                   
+        # ,---.'     \              |  | :,'            ,---.'|                                                   
+        # |   |  .`\  |             :  : ' :            |   | :                  .--.--.               .--.--.    
+        # :   : |  '  |  ,--.--.  .;__,'  /    ,--.--.  :   : :      ,--.--.    /  /    '     ,---.   /  /    '   
+        # |   ' '  ;  : /       \ |  |   |    /       \ :     |,-.  /       \  |  :  /`./    /     \ |  :  /`./   
+        # '   | ;  .  |.--.  .-. |:__,'| :   .--.  .-. ||   : '  | .--.  .-. | |  :  ;_     /    /  ||  :  ;_     
+        # |   | :  |  ' \__\/: . .  '  : |__  \__\/: . .|   |  / :  \__\/: . .  \  \    `. .    ' / | \  \    `.  
+        # '   : | /  ;  ," .--.; |  |  | '.'| ," .--.; |'   : |: |  ," .--.; |   `----.   \'   ;   /|  `----.   \ 
+        # |   | '` ,/  /  /  ,.  |  ;  :    ;/  /  ,.  ||   | '/ : /  /  ,.  |  /  /`--'  /'   |  / | /  /`--'  / 
+        # ;   :  .'   ;  :   .'   \ |  ,   /;  :   .'   \   :    |;  :   .'   \'--'.     / |   :    |'--'.     /  
+        # |   ,.'     |  ,     .-./  ---`-' |  ,     .-./    \  / |  ,     .-./  `--'---'   \   \  /   `--'---'   
+        # '---'        `--`---'              `--`---'   `-'----'   `--`---'                  `----'               
+        ###
 
         mariadb:
                 image: lscr.io/linuxserver/mariadb
