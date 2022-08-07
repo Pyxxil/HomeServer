@@ -115,6 +115,10 @@ volumes:
                 driver_opts:
                         <<: *driver-opts
                         device: ${CONFIG_DIR}/syncthing
+        config-traefik:
+                driver_opts:
+                        <<: *driver-opts
+                        device: ${CONFIG_DIR}/traefik
         config-unbound:
                 driver_opts:
                         <<: *driver-opts
@@ -188,18 +192,37 @@ services:
                 command:
                         - "--api=true"
                         - "--api.dashboard=true"
-                        - "--entrypoints.http.address=:80"
+                        - "--certificatesresolvers.letsencrpyt.acme.caserver=https://acme-v02.api.letsencrypt.org/directory"
+                        - "--certificatesresolvers.letsencrpyt.acme.dnschallenge.delaybeforecheck=0"
+                        - "--certificatesresolvers.letsencrpyt.acme.dnschallenge.provider=cloudflare"
+                        - "--certificatesresolvers.letsencrpyt.acme.dnschallenge.resolvers=1.1.1.1:53,8.8.8.8:53"
+                        - "--certificatesresolvers.letsencrpyt.acme.email=${ADMIN_EMAIL}"
+                        - "--certificatesresolvers.letsencrpyt.acme.storage=/config/acme.json"
+                        - "--entrypoints.web.address=:80"
+                        - "--entrypoints.websecure.address=:443"
+                        - "--entrypoints.websecure.http.tls.domains[0].main=${DOMAIN}"
+                        - "--entrypoints.websecure.http.tls.domains[0].sans=*.${DOMAIN}"
                         - "--ping=true"
                         - "--metrics.prometheus=true"
                         - "--providers.docker=true"
                         - "--providers.docker.watch=true"
                         - "--providers.docker.exposedbydefault=true"
+                        - "--tracing=true"
+                        - "--tracing.jaeger=true"
+                        - "--tracing.jaeger.samplingServerURL=http://jaeger:5778/sampling"
+                        - "--tracing.jaeger.localAgentHostPort=jaeger:6831"
+                        - "--tracing.serviceName=traefik"
+                environment:
+                        <<: *env-vars
+                        CLOUDFLARE_DNS_API_TOKEN: ${CLOUDFLARE_DNS_API_TOKEN}
                 ports:
                         - 80:80
+                        - 443:443
                         - 8080:8080
                         - 8888:8888
                 volumes:
                         - /var/run/docker.sock:/var/run/docker.sock
+                        - config-traefik:/config
                 networks:
                         - web
                         - internal
@@ -212,6 +235,12 @@ services:
                 labels:
                         traefik.http.routers.dashboard.rule: Host(`${DOMAIN}`) && (PathPrefix(`/api`) || PathPrefix(`/dashboard`))
                         traefik.http.routers.dashboard.service: api@internal
+                        traefik.http.routers.dashboard.tls: true
+                        traefik.http.routers.http-catchall.rule: hostregexp(`{host:.+}`)
+                        traefik.http.routers.http-catchall.entrypoints: web
+                        traefik.http.routers.http-catchall.middlewares: redirect-to-https
+                        traefik.http.middlewares.redirect-to-https.redirectscheme.scheme: https
+                        traefik.http.middlewares.redirect-to-https.redirectScheme.permanent: true
                         plugsy.name: Traefik
                         plugsy.category: System
 
@@ -234,6 +263,8 @@ services:
                 labels:
                         traefik.port: 8000
                         traefik.http.routers.plugsy.rule: Host(`plugins.${DOMAIN}`)
+                        traefik.http.routers.plugsy.entrypoints: websecure
+                        traefik.http.routers.plugsy.tls: true
 
         portainer:
                 image: portainer/portainer-ce
@@ -253,9 +284,11 @@ services:
                         traefik.port: 9000
                         traefik.http.routers.portainer.rule: Host(`portainer.${DOMAIN}`)
                         traefik.http.services.portainer.loadbalancer.server.port: 9000
+                        traefik.http.routers.portainer.entrypoints: websecure
+                        traefik.http.routers.portainer.tls: true
                         plugsy.name: Portainer
                         plugsy.category: System
-                        plugsy.link: http://portainer.${DOMAIN}
+                        plugsy.link: https://portainer.${DOMAIN}
 
         ###
         #           ____                                                               
@@ -273,6 +306,38 @@ services:
         # |   ;/          \   \  /    ---`-'           |  ,   /  \   \  /   `--'---'   
         # '---'            `----'                       ---`-'    `----'             
         ###
+
+        jaeger:
+                image: jaegertracing/all-in-one:1.37
+                container_name: jaeger
+                restart: unless-stopped
+                networks:
+                        - web
+                        - private_network
+                        - internal
+                ports:
+                        - 6831:6831/udp
+                        - 6832:6832/udp
+                        - 5778:5778
+                        - 16686:16686
+                        - 4317:4317
+                        - 4318:4318
+                        - 14250:14250
+                        - 14268:14268
+                        - 14269:14269
+                        - 9411:9411
+                environment:
+                        COLLECTOR_ZIPKIN_HOST_PORT: :9411
+                        COLLECTOR_OTLP_ENABLED: true
+                        METRICS_STORAGE_TYPE: prometheus
+                labels:
+                        traefik.port: 16686
+                        traefik.http.routers.jaeger.rule: Host(`jaeger.${DOMAIN}`)
+                        traefik.http.routers.jaeger.entrypoints: websecure
+                        traefik.http.routers.jaeger.tls: true
+                        traefik.http.services.jaeger.loadbalancer.server.port: 16686
+                        plugsy.name: Jaeger
+                        plugsy.category: Metrics
 
         prometheus:
                 image: prom/prometheus
@@ -300,10 +365,12 @@ services:
                 labels:
                         traefik.port: 9090
                         traefik.http.routers.prometheus.rule: Host(`prometheus.${DOMAIN}`)
+                        traefik.http.routers.prometheus.entrypoints: websecure
+                        traefik.http.routers.prometheus.tls: true
                         traefik.backend: prometheus
                         plugsy.name: Prometheus
                         plugsy.category: Metrics
-                        plugsy.link: http://prometheus.${DOMAIN}
+                        plugsy.link: https://prometheus.${DOMAIN}
 
         grafana:
                 image: grafana/grafana
@@ -315,7 +382,7 @@ services:
                         - 3001:3000
                 user: '104'
                 environment:
-                        GF_SERVER_ROOT_URL: http://metrics.${DOMAIN}
+                        GF_SERVER_ROOT_URL: https://metrics.${DOMAIN}
                 volumes:
                         - config-grafana:/etc/grafana
                         - config-grafana-data:/var/lib/grafana
@@ -333,9 +400,11 @@ services:
                 labels:
                         traefik.port: 3001
                         traefik.http.routers.grafana.rule: Host(`metrics.${DOMAIN}`)
+                        traefik.http.routers.grafana.entrypoints: websecure
+                        traefik.http.routers.grafana.tls: true
                         plugsy.name: Grafana
                         plugsy.category: Metrics
-                        plugsy.link: http://metrics.${DOMAIN}
+                        plugsy.link: https://metrics.${DOMAIN}
 
         adguard_exporter:
                 image: ebrianne/adguard-exporter
@@ -343,15 +412,17 @@ services:
                 restart: unless-stopped
                 networks:
                         - web
+                        - private_network
                 depends_on:
                         - adguard
                 ports:
                         - 9617:9617
                 environment:
                         adguard_protocol: http
-                        adguard_hostname: dns.${DOMAIN}
+                        adguard_hostname: adguard
                         adguard_username: ${ADGUARD_USERNAME}
                         adguard_password: ${ADGUARD_PASSWORD}
+                        adguard_port: 3000
                         server_port: 9617
                         interval: 10s
                         log_limit: 10000
@@ -429,9 +500,11 @@ services:
                 labels:
                         traefik.port: 83
                         traefik.http.routers.heimdall.rule: Host(`dash.${DOMAIN}`)
+                        traefik.http.routers.heimdall.entrypoints: websecure
+                        traefik.http.routers.heimdall.tls: true
                         plugsy.name: Heimdall
                         plugsy.category: System
-                        plugsy.link: http://dash.${DOMAIN}
+                        plugsy.link: https://dash.${DOMAIN}
 
         vaultwarden:
                 image: vaultwarden/server
@@ -442,18 +515,28 @@ services:
                 volumes:
                         - config-vaultwarden:/data
                 ports:
-                        - 84:80
+                        - 8800:8800
+                        - 3012:3012
                 environment:
                         <<: *env-vars
-                        DOMAIN: "http://vault.${DOMAIN}"
+                        DOMAIN: "https://vault.${DOMAIN}"
                         ADMIN_TOKEN: ${VAULTWARDEN_TOKEN}
+                        WEBSOCKET_ENABLED: true
+                        ROCKET_PORT: 8800
                 labels:
-                        traefik.port: 84
-                        traefik.http.routers.vaultwarden.rule: Host(`vault.${DOMAIN}`)
-                        traefik.http.services.vaultwarden.loadbalancer.server.port: 84
+                        traefik.http.routers.vaultwarden-ui.rule: Host(`vault.${DOMAIN}`)
+                        traefik.http.services.vaultwarden-ui.loadbalancer.server.port: 8800
+                        traefik.http.routers.vaultwarden-ui.entrypoints: websecure
+                        traefik.http.routers.vaultwarden-ui.tls: true
+                        traefik.http.routers.vaultwarden-ui.service: vaultwarden-ui
+                        traefik.http.routers.vaultwarden-websocket.rule: Host(`vault.${DOMAIN}`) && Path(`/notifications/hub`)
+                        traefik.http.routers.vaultwarden-websocket.entrypoints: websecure
+                        traefik.http.routers.vaultwarden-websocket.tls: true
+                        traefik.http.routers.vaultwarden-websocket.service: vaultwarden-websocket
+                        traefik.http.services.vaultwarden-websocket.loadbalancer.server.port: 3012
                         plugsy.name: Vaultwarden
                         plugsy.category: System
-                        plugsy.link: http://vault.${DOMAIN}
+                        plugsy.link: https://vault.${DOMAIN}
 
         ###
         #                       ,--.             
@@ -536,8 +619,12 @@ services:
                 ports:
                         - 53:53/tcp
                         - 53:53/udp
-                        - 443:443/tcp
-                        - 443:443/udp
+                        - 784:784/tcp
+                        - 784:784/udp
+                        - 853:53/tcp
+                        - 853:53/udp
+                        - 4443:443/tcp
+                        - 4443:443/udp
                         - 3000:3000/tcp
                 healthcheck:
                         test: [ "CMD-SHELL", "/bin/netstat -pant | /bin/grep :53" ]
@@ -545,11 +632,13 @@ services:
                         timeout: 30s
                         retries: 3
                 labels:
-                        traefik.port: 3000
+                        traefik.port: 4443
                         traefik.http.routers.adguard.rule: Host(`dns.${DOMAIN}`)
                         traefik.http.services.adguard.loadbalancer.server.port: 3000
+                        traefik.http.routers.adguard.entrypoints: websecure
+                        traefik.http.routers.adguard.tls: true
                         plugsy.name: AdGuard
-                        plugsy.link: http://dns.${DOMAIN}/
+                        plugsy.link: https://dns.${DOMAIN}/
                         plugsy.category: Privacy
                         plugsy.parents: Unbound,DNSCrypt
 
@@ -577,10 +666,12 @@ services:
                 labels:
                         traefik.port: 8081
                         traefik.http.routers.cloud.rule: Host(`cloud.${DOMAIN}`)
+                        traefik.http.routers.cloud.entrypoints: websecure
+                        traefik.http.routers.cloud.tls: true
                         plugsy.name: NextCloud
                         plugsy.category: Cloud
                         plugsy.parents: MariaDB
-                        plugsy.link: http://cloud.${DOMAIN}
+                        plugsy.link: https://cloud.${DOMAIN}
 
         wiki:
                 container_name: wiki
@@ -590,7 +681,7 @@ services:
                         - mariadb
                 environment:
                         <<: *env-vars
-                        APP_URL: http://wiki.${DOMAIN}
+                        APP_URL: https://wiki.${DOMAIN}
                         DB_HOST: ${DATABASE_HOST}
                         DB_DATABASE: ${DATABASE}
                         DB_USER: ${DATABASE_USERNAME}
@@ -615,10 +706,12 @@ services:
                 labels:
                         traefik.port: 6875
                         traefik.http.routers.wiki.rule: Host(`wiki.${DOMAIN}`)
+                        traefik.http.routers.wiki.entrypoints: websecure
+                        traefik.http.routers.wiki.tls: true
                         plugsy.name: Personal Wiki
                         plugsy.category: Cloud
                         plugsy.parents: MariaDB
-                        plugsy.link: http://wiki.${DOMAIN}
+                        plugsy.link: https://wiki.${DOMAIN}
 
         code-server:
                 image: lscr.io/linuxserver/openvscode-server:latest
@@ -647,9 +740,11 @@ services:
                 labels:
                         traefik.port: 8443
                         traefik.http.routers.code.rule: Host(`dev.${DOMAIN}`)
+                        traefik.http.routers.code.entrypoints: websecure
+                        traefik.http.routers.code.tls: true
                         plugsy.name: Code Server
                         plugsy.category: Cloud
-                        plugsy.link: http://dev.${DOMAIN}
+                        plugsy.link: https://dev.${DOMAIN}
 
         ###
         #           ____                                            
@@ -689,9 +784,11 @@ services:
                 labels:
                         traefik.port: 7878
                         traefik.http.routers.radarr.rule: Host(`request.${DOMAIN}`) && PathPrefix(`/movies`)
+                        traefik.http.routers.radarr.entrypoints: websecure
+                        traefik.http.routers.radarr.tls: true
                         plugsy.name: Radarr
                         plugsy.category: Media
-                        plugsy.link: http://request.${DOMAIN}/movies
+                        plugsy.link: https://request.${DOMAIN}/movies
 
         sonarr:
                 image: lscr.io/linuxserver/sonarr:latest
@@ -714,9 +811,11 @@ services:
                 labels:
                         traefik.port: 8989
                         traefik.http.routers.sonarr.rule: Host(`request.${DOMAIN}`) && PathPrefix(`/shows`)
+                        traefik.http.routers.sonarr.entrypoints: websecure
+                        traefik.http.routers.sonarr.tls: true
                         plugsy.name: Sonarr
                         plugsy.category: Media
-                        plugsy.link: http://request.${DOMAIN}/shows
+                        plugsy.link: https://request.${DOMAIN}/shows
 
         lidarr:
                 image: lscr.io/linuxserver/lidarr:latest
@@ -739,9 +838,11 @@ services:
                 labels:
                         traefik.port: 6767
                         traefik.http.routers.lidarr.rule: Host(`request.${DOMAIN}`) && PathPrefix(`/music`)
+                        traefik.http.routers.lidarr.entrypoints: websecure
+                        traefik.http.routers.lidarr.tls: true
                         plugsy.name: Lidarr
                         plugsy.category: Media
-                        plugsy.link: http://request.${DOMAIN}/music
+                        plugsy.link: https://request.${DOMAIN}/music
 
         readarr:
                 image: lscr.io/linuxserver/readarr:develop
@@ -764,9 +865,11 @@ services:
                 labels:
                         traefik.port: 5656
                         traefik.http.routers.readarr.rule: Host(`request.${DOMAIN}`) && PathPrefix(`/books`)
+                        traefik.http.routers.readarr.entrypoints: websecure
+                        traefik.http.routers.readarr.tls: true
                         plugsy.name: Readarr
                         plugsy.category: Media
-                        plugsy.link: http://request.${DOMAIN}/books
+                        plugsy.link: https://request.${DOMAIN}/books
 
         ytdl_material:
                 image: tzahi12345/youtubedl-material:latest
@@ -776,7 +879,7 @@ services:
                         ytdl_mongodb_connection_string: 'mongodb://mongo:27017'
                         ytdl_use_local_db: 'false'
                         write_ytdl_config: 'true'
-                        ytdl_url: 'http://request.${DOMAIN}/youtube/'
+                        ytdl_url: 'https://request.${DOMAIN}/youtube/'
                 restart: unless-stopped
                 depends_on:
                         - mongo
@@ -799,10 +902,12 @@ services:
                 labels:
                         traefik.port: 8998
                         traefik.http.routers.youtube.rule: Host(`youtube.${DOMAIN}`)
+                        traefik.http.routers.youtube.entrypoints: websecure
+                        traefik.http.routers.youtube.tls: true
                         plugsy.name: YoutubeDL Material
                         plugsy.category: Media
                         plugsy.parents: MongoDB
-                        plugsy.link: http://youtube.${DOMAIN}
+                        plugsy.link: https://youtube.${DOMAIN}
 
         doplarr:
                 image: lscr.io/linuxserver/doplarr:latest
@@ -814,10 +919,10 @@ services:
                         <<: *env-vars
                         DISCORD__TOKEN: ${DISCORD_TOKEN}
                         RADARR__API: ${RADARR_API_KEY}
-                        RADARR__URL: http://radarr:7878/movies
+                        RADARR__URL: https://radarr:7878/movies
                         RADARR__QUALITY_PROFILE: Any
                         SONARR__API: ${SONARR_API_KEY}
-                        SONARR__URL: http://sonarr:8989/shows
+                        SONARR__URL: https://sonarr:8989/shows
                         SONARR__QUALITY_PROFILE: Any
                         DISCORD__MAX_RESULTS: 25
                         DISCORD__REQUESTED_MSG_STYLE: :embed
@@ -848,9 +953,11 @@ services:
                 labels:
                         traefik.port: 9696
                         traefik.http.routers.prowlarr.rule: Host(`request.${DOMAIN}`) && PathPrefix(`/indexers`)
+                        traefik.http.routers.prowlarr.entrypoints: websecure
+                        traefik.http.routers.prowlarr.tls: true
                         plugsy.name: Prowlarr
                         plugsy.category: Media
-                        plugsy.link: http://request.${DOMAIN}/indexers
+                        plugsy.link: https://request.${DOMAIN}/indexers
 
         qbittorrent:
                 image: lscr.io/linuxserver/qbittorrent:latest
@@ -877,6 +984,8 @@ services:
                 labels:
                         traefik.port: 8980
                         traefik.http.routers.qbittorrent.rule: Host(`request.${DOMAIN}`)
+                        traefik.http.routers.qbittorrent.entrypoints: websecure
+                        traefik.http.routers.qbittorrent.tls: true
                         traefik.http.middlewares.qbittorrent-headers.headers.customrequestheaders.X-Frame-Options: SAMEORIGIN
                         traefik.http.middlewares.qbittorrent-headers.headers.customrequestheaders.Referer: ""
                         traefik.http.middlewares.qbittorrent-headers.headers.customrequestheaders.Origin: ""
@@ -885,7 +994,7 @@ services:
                         traefik.http.services.qbittorrent.loadbalancer.passhostheader: false
                         plugsy.name: qBittorrent
                         plugsy.category: Media
-                        plugsy.link: http://request.${DOMAIN}/
+                        plugsy.link: https://request.${DOMAIN}/
 
         watch:
                 container_name: watch
@@ -919,9 +1028,11 @@ services:
                 labels:
                         traefik.port: 8920
                         traefik.http.routers.watch.rule: Host(`watch.${DOMAIN}`)
+                        traefik.http.routers.watch.entrypoints: websecure
+                        traefik.http.routers.watch.tls: true
                         plugsy.name: Jellyfin
                         plugsy.category: Media
-                        plugsy.link: http://watch.${DOMAIN}
+                        plugsy.link: https://watch.${DOMAIN}
 
         sync:
                 container_name: sync
@@ -945,9 +1056,11 @@ services:
                 labels:
                         traefik.port: 8384
                         traefik.http.routers.sync.rule: Host(`sync.${DOMAIN}`)
+                        traefik.http.routers.sync.entrypoints: websecure
+                        traefik.http.routers.sync.tls: true
                         plugsy.name: Syncthing
                         plugsy.category: Cloud
-                        plugsy.link: http://sync.${DOMAIN}
+                        plugsy.link: https://sync.${DOMAIN}
 
         ###
         #    ,---,.                           ,-.            
@@ -986,6 +1099,8 @@ services:
                 labels:
                         traefik.port: 8082
                         traefik.http.routers.calibre.rule: Host(`calibre.${DOMAIN}`)
+                        traefik.http.routers.calibre.entrypoints: websecure
+                        traefik.http.routers.calibre.tls: true
                         plugsy.name: Calibre
                         plugsy.category: System
 
@@ -1012,9 +1127,11 @@ services:
                 labels:
                         traefik.port: 8084
                         traefik.http.routers.read.rule: Host(`read.${DOMAIN}`)
+                        traefik.http.routers.read.entrypoints: websecure
+                        traefik.http.routers.read.tls: true
                         plugsy.name: Calibre Web
                         plugsy.category: Media
-                        plugsy.link: http://read.${DOMAIN}
+                        plugsy.link: https://read.${DOMAIN}
 
         ###
         #     ,---,                   ___                                                                         
