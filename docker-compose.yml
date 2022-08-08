@@ -43,10 +43,6 @@ volumes:
                 driver_opts:
                         <<: *driver-opts
                         device: ${CONFIG_DIR}/dnscrypt
-        config-doplarr:
-                driver_opts:
-                        <<: *driver-opts
-                        device: ${CONFIG_DIR}/doplarr
         config-grafana:
                 driver_opts:
                         <<: *driver-opts
@@ -71,6 +67,10 @@ volumes:
                 driver_opts:
                         <<: *driver-opts
                         device: ${CONFIG_DIR}/jellyfin/cache
+        config-jellyseerr:
+                driver_opts:
+                        <<: *driver-opts
+                        device: ${CONFIG_DIR}/jellyseerr
         config-lidarr:
                 driver_opts:
                         <<: *driver-opts
@@ -79,6 +79,10 @@ volumes:
                 driver_opts:
                         <<: *driver-opts
                         device: ${CONFIG_DIR}/mariadb
+        config-mediaelch:
+                driver_opts:
+                        <<: *driver-opts
+                        device: ${CONFIG_DIR}/mediaelch
         config-mongo:
                 driver_opts:
                         <<: *driver-opts
@@ -290,6 +294,32 @@ services:
                         plugsy.category: System
                         plugsy.link: https://portainer.${DOMAIN}
 
+        heimdall:
+                image: lscr.io/linuxserver/heimdall
+                container_name: heimdall
+                restart: unless-stopped
+                networks:
+                        - web
+                volumes:
+                        - config-heimdall:/config
+                ports:
+                        - 83:80
+                environment: *env-vars
+                healthcheck:
+                        test: [ "CMD-SHELL", "netstat -pant | grep :80" ]
+                        interval: 1m30s
+                        timeout: 30s
+                        retries: 5
+                        start_period: 30s
+                labels:
+                        traefik.port: 83
+                        traefik.http.routers.heimdall.rule: Host(`dash.${DOMAIN}`)
+                        traefik.http.routers.heimdall.entrypoints: websecure
+                        traefik.http.routers.heimdall.tls: true
+                        plugsy.name: Heimdall
+                        plugsy.category: System
+                        plugsy.link: https://dash.${DOMAIN}
+
         ###
         #           ____                                                               
         #         ,'  , `.             ___                                             
@@ -326,6 +356,16 @@ services:
                         - 14268:14268
                         - 14269:14269
                         - 9411:9411
+                healthcheck:
+                        test:
+                                [
+                                        "CMD-SHELL",
+                                        "wget -qO- http://localhost:14269 || grep 'Server available'"
+                                ]
+                        interval: 10s
+                        timeout: 15s
+                        retries: 10
+                        start_period: 40s
                 environment:
                         COLLECTOR_ZIPKIN_HOST_PORT: :9411
                         COLLECTOR_OTLP_ENABLED: true
@@ -480,64 +520,6 @@ services:
                         plugsy.name: Host Exporter
                         plugsy.category: Metrics
 
-        heimdall:
-                image: lscr.io/linuxserver/heimdall
-                container_name: heimdall
-                restart: unless-stopped
-                networks:
-                        - web
-                volumes:
-                        - config-heimdall:/config
-                ports:
-                        - 83:80
-                environment: *env-vars
-                healthcheck:
-                        test: [ "CMD-SHELL", "netstat -pant | grep :80" ]
-                        interval: 1m30s
-                        timeout: 30s
-                        retries: 5
-                        start_period: 30s
-                labels:
-                        traefik.port: 83
-                        traefik.http.routers.heimdall.rule: Host(`dash.${DOMAIN}`)
-                        traefik.http.routers.heimdall.entrypoints: websecure
-                        traefik.http.routers.heimdall.tls: true
-                        plugsy.name: Heimdall
-                        plugsy.category: System
-                        plugsy.link: https://dash.${DOMAIN}
-
-        vaultwarden:
-                image: vaultwarden/server
-                container_name: vaultwarden
-                restart: unless-stopped
-                networks:
-                        - web
-                volumes:
-                        - config-vaultwarden:/data
-                ports:
-                        - 8800:8800
-                        - 3012:3012
-                environment:
-                        <<: *env-vars
-                        DOMAIN: "https://vault.${DOMAIN}"
-                        ADMIN_TOKEN: ${VAULTWARDEN_TOKEN}
-                        WEBSOCKET_ENABLED: true
-                        ROCKET_PORT: 8800
-                labels:
-                        traefik.http.routers.vaultwarden-ui.rule: Host(`vault.${DOMAIN}`)
-                        traefik.http.services.vaultwarden-ui.loadbalancer.server.port: 8800
-                        traefik.http.routers.vaultwarden-ui.entrypoints: websecure
-                        traefik.http.routers.vaultwarden-ui.tls: true
-                        traefik.http.routers.vaultwarden-ui.service: vaultwarden-ui
-                        traefik.http.routers.vaultwarden-websocket.rule: Host(`vault.${DOMAIN}`) && Path(`/notifications/hub`)
-                        traefik.http.routers.vaultwarden-websocket.entrypoints: websecure
-                        traefik.http.routers.vaultwarden-websocket.tls: true
-                        traefik.http.routers.vaultwarden-websocket.service: vaultwarden-websocket
-                        traefik.http.services.vaultwarden-websocket.loadbalancer.server.port: 3012
-                        plugsy.name: Vaultwarden
-                        plugsy.category: System
-                        plugsy.link: https://vault.${DOMAIN}
-
         ###
         #                       ,--.             
         #     ,---,           ,--.'|  .--.--.    
@@ -632,7 +614,6 @@ services:
                         timeout: 30s
                         retries: 3
                 labels:
-                        traefik.port: 4443
                         traefik.http.routers.adguard.rule: Host(`dns.${DOMAIN}`)
                         traefik.http.services.adguard.loadbalancer.server.port: 3000
                         traefik.http.routers.adguard.entrypoints: websecure
@@ -641,6 +622,24 @@ services:
                         plugsy.link: https://dns.${DOMAIN}/
                         plugsy.category: Privacy
                         plugsy.parents: Unbound,DNSCrypt
+
+        ###
+        #               ,--,                                             
+        #            ,---.'|       ,----..                               
+        #   ,----..  |   | :      /   /   \                    ,---,     
+        #  /   /   \ :   : |     /   .     :          ,--,   .'  .' `\   
+        # |   :     :|   ' :    .   /   ;.  \       ,'_ /| ,---.'     \  
+        # .   |  ;. /;   ; '   .   ;   /  ` ;  .--. |  | : |   |  .`\  | 
+        # .   ; /--` '   | |__ ;   |  ; \ ; |,'_ /| :  . | :   : |  '  | 
+        # ;   | ;    |   | :.'||   :  | ; | '|  ' | |  . . |   ' '  ;  : 
+        # |   : |    '   :    ;.   |  ' ' ' :|  | ' |  | | '   | ;  .  | 
+        # .   | '___ |   |  ./ '   ;  \; /  |:  | | :  ' ; |   | :  |  ' 
+        # '   ; : .'|;   : ;    \   \  ',  / |  ; ' |  | ' '   : | /  ;  
+        # '   | '/  :|   ,/      ;   :    /  :  | : ;  ; | |   | '` ,/   
+        # |   :    / '---'        \   \ .'   '  :  `--'   \;   :  .'     
+        #  \   \ .'                `---`     :  ,      .-./|   ,.'       
+        #   `---`                             `--`----'    '---'         
+        ###
 
         cloud:
                 container_name: cloud
@@ -745,6 +744,66 @@ services:
                         plugsy.name: Code Server
                         plugsy.category: Cloud
                         plugsy.link: https://dev.${DOMAIN}
+
+        sync:
+                container_name: sync
+                image: lscr.io/linuxserver/syncthing
+                restart: unless-stopped
+                environment: *env-vars
+                volumes:
+                        - config-syncthing:/config
+                        - sync:/config/Sync
+                ports:
+                        - 8384:8384
+                        - 22000:22000
+                        - 21027:21027/udp
+                networks:
+                        - web
+                healthcheck:
+                        test: nc -z 127.0.0.1 8384 || exit 1
+                        interval: 30s
+                        timeout: 3s
+                        retries: 3
+                labels:
+                        traefik.port: 8384
+                        traefik.http.routers.sync.rule: Host(`sync.${DOMAIN}`)
+                        traefik.http.routers.sync.entrypoints: websecure
+                        traefik.http.routers.sync.tls: true
+                        plugsy.name: Syncthing
+                        plugsy.category: Cloud
+                        plugsy.link: https://sync.${DOMAIN}
+
+        vaultwarden:
+                image: vaultwarden/server
+                container_name: vaultwarden
+                restart: unless-stopped
+                networks:
+                        - web
+                volumes:
+                        - config-vaultwarden:/data
+                ports:
+                        - 8800:8800
+                        - 3012:3012
+                environment:
+                        <<: *env-vars
+                        DOMAIN: "https://vault.${DOMAIN}"
+                        ADMIN_TOKEN: ${VAULTWARDEN_TOKEN}
+                        WEBSOCKET_ENABLED: true
+                        ROCKET_PORT: 8800
+                labels:
+                        traefik.http.routers.vaultwarden-ui.rule: Host(`vault.${DOMAIN}`)
+                        traefik.http.services.vaultwarden-ui.loadbalancer.server.port: 8800
+                        traefik.http.routers.vaultwarden-ui.entrypoints: websecure
+                        traefik.http.routers.vaultwarden-ui.tls: true
+                        traefik.http.routers.vaultwarden-ui.service: vaultwarden-ui
+                        traefik.http.routers.vaultwarden-websocket.rule: Host(`vault.${DOMAIN}`) && Path(`/notifications/hub`)
+                        traefik.http.routers.vaultwarden-websocket.entrypoints: websecure
+                        traefik.http.routers.vaultwarden-websocket.tls: true
+                        traefik.http.routers.vaultwarden-websocket.service: vaultwarden-websocket
+                        traefik.http.services.vaultwarden-websocket.loadbalancer.server.port: 3012
+                        plugsy.name: Vaultwarden
+                        plugsy.category: System
+                        plugsy.link: https://vault.${DOMAIN}
 
         ###
         #           ____                                            
@@ -909,31 +968,6 @@ services:
                         plugsy.parents: MongoDB
                         plugsy.link: https://youtube.${DOMAIN}
 
-        doplarr:
-                image: lscr.io/linuxserver/doplarr:latest
-                container_name: doplarr
-                restart: unless-stopped
-                networks:
-                        - web
-                environment:
-                        <<: *env-vars
-                        DISCORD__TOKEN: ${DISCORD_TOKEN}
-                        RADARR__API: ${RADARR_API_KEY}
-                        RADARR__URL: https://radarr:7878/movies
-                        RADARR__QUALITY_PROFILE: Any
-                        SONARR__API: ${SONARR_API_KEY}
-                        SONARR__URL: https://sonarr:8989/shows
-                        SONARR__QUALITY_PROFILE: Any
-                        DISCORD__MAX_RESULTS: 25
-                        DISCORD__REQUESTED_MSG_STYLE: :embed
-                        LOG_LEVEL: :info
-                volumes:
-                        - config-doplarr:/config
-                labels:
-                        traefik.enable: false
-                        plugsy.name: Doplarr
-                        plugsy.category: Media
-
         prowlarr:
                 image: lscr.io/linuxserver/prowlarr:develop
                 container_name: prowlarr
@@ -994,7 +1028,51 @@ services:
                         traefik.http.services.qbittorrent.loadbalancer.passhostheader: false
                         plugsy.name: qBittorrent
                         plugsy.category: Media
-                        plugsy.link: https://request.${DOMAIN}/
+                        plugsy.link: https://request.${DOMAIN}
+
+        jellyseerr:
+                image: fallenbagel/jellyseerr
+                container_name: jellyseerr
+                restart: unless-stopped
+                environment: *env-vars
+                networks:
+                        - web
+                ports:
+                        - 5055:5055
+                volumes:
+                        - config-jellyseerr:/app/config
+                labels:
+                        traefik.port: 5055
+                        traefik.http.routers.jellyseer.rule: Host(`seer.${DOMAIN}`)
+                        traefik.http.routers.jellyseer.entrypoints: websecure
+                        traefik.http.routers.jellyseer.tls: true
+                        plugsy.name: Jellyseerr
+                        plugsy.category: Media
+                        plugsy.link: https://seer.${DOMAIN}
+
+        mediaelch:
+                image: masonxx/mediaelch
+                container_name: mediaelch
+                restart: unless-stopped
+                environment: *env-vars
+                networks:
+                        - web
+                volumes:
+                        - config-mediaelch:/config/xdg/config/kvibes
+                        - media-movies:/movies
+                        - media-music:/music
+                        - media-shows:/shows
+                ports:
+                        - 5800:5800
+                        - 5900:5900
+                labels:
+                        traefik.port: 5800
+                        traefik.http.routers.mediaelch.rule: Host(`metadata.${DOMAIN}`)
+                        traefik.http.routers.mediaelch.entrypoints: websecure
+                        traefik.http.routers.mediaelch.tls: true
+                        plugsy.name: Mediaelch
+                        plugsy.category: Media
+                        plugsy.link: https://metadata.${DOMAIN}
 
         watch:
                 container_name: watch
@@ -1033,34 +1111,6 @@ services:
                         plugsy.name: Jellyfin
                         plugsy.category: Media
                         plugsy.link: https://watch.${DOMAIN}
-
-        sync:
-                container_name: sync
-                image: lscr.io/linuxserver/syncthing
-                restart: unless-stopped
-                environment: *env-vars
-                volumes:
-                        - config-syncthing:/config
-                        - sync:/config/Sync
-                ports:
-                        - 8384:8384
-                        - 22000:22000
-                        - 21027:21027/udp
-                networks:
-                        - web
-                healthcheck:
-                        test: nc -z 127.0.0.1 8384 || exit 1
-                        interval: 30s
-                        timeout: 3s
-                        retries: 3
-                labels:
-                        traefik.port: 8384
-                        traefik.http.routers.sync.rule: Host(`sync.${DOMAIN}`)
-                        traefik.http.routers.sync.entrypoints: websecure
-                        traefik.http.routers.sync.tls: true
-                        plugsy.name: Syncthing
-                        plugsy.category: Cloud
-                        plugsy.link: https://sync.${DOMAIN}
 
         ###
         #    ,---,.                           ,-.            
