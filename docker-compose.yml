@@ -43,6 +43,10 @@ volumes:
                 driver_opts:
                         <<: *driver-opts
                         device: ${CONFIG_DIR}/dnscrypt
+        config-freshrss:
+                driver_opts:
+                        <<: *driver-opts
+                        device: ${CONFIG_DIR}/freshrss
         config-grafana:
                 driver_opts:
                         <<: *driver-opts
@@ -191,7 +195,7 @@ services:
 
         traefik:
                 container_name: traefik
-                image: traefik:latest
+                image: traefik:2.8
                 restart: unless-stopped
                 command:
                         - "--api=true"
@@ -203,7 +207,9 @@ services:
                         - "--certificatesresolvers.letsencrpyt.acme.email=${ADMIN_EMAIL}"
                         - "--certificatesresolvers.letsencrpyt.acme.storage=/config/acme.json"
                         - "--entrypoints.web.address=:80"
+                        - "--experimental.http3=true"
                         - "--entrypoints.websecure.address=:443"
+                        - "--entrypoints.websecure.http3"
                         - "--entrypoints.websecure.http.tls.domains[0].main=${DOMAIN}"
                         - "--entrypoints.websecure.http.tls.domains[0].sans=*.${DOMAIN}"
                         - "--ping=true"
@@ -221,7 +227,8 @@ services:
                         CLOUDFLARE_DNS_API_TOKEN: ${CLOUDFLARE_DNS_API_TOKEN}
                 ports:
                         - 80:80
-                        - 443:443
+                        - 443:443/tcp
+                        - 443:443/udp
                         - 8080:8080
                         - 8888:8888
                 volumes:
@@ -285,7 +292,6 @@ services:
                         - web
                         - internal
                 labels:
-                        traefik.port: 9000
                         traefik.http.routers.portainer.rule: Host(`portainer.${DOMAIN}`)
                         traefik.http.services.portainer.loadbalancer.server.port: 9000
                         traefik.http.routers.portainer.entrypoints: websecure
@@ -371,7 +377,6 @@ services:
                         COLLECTOR_OTLP_ENABLED: true
                         METRICS_STORAGE_TYPE: prometheus
                 labels:
-                        traefik.port: 16686
                         traefik.http.routers.jaeger.rule: Host(`jaeger.${DOMAIN}`)
                         traefik.http.routers.jaeger.entrypoints: websecure
                         traefik.http.routers.jaeger.tls: true
@@ -385,6 +390,7 @@ services:
                 restart: unless-stopped
                 networks:
                         - web
+                        - private_network
                 command:
                         - "--config.file=/etc/prometheus/prometheus.yml"
                         - "--storage.tsdb.path=/prometheus"
@@ -403,9 +409,9 @@ services:
                         retries: 10
                         start_period: 40s
                 labels:
-                        traefik.port: 9090
                         traefik.http.routers.prometheus.rule: Host(`prometheus.${DOMAIN}`)
                         traefik.http.routers.prometheus.entrypoints: websecure
+                        traefik.http.services.prometheus.loadbalancer.server.port: 9090
                         traefik.http.routers.prometheus.tls: true
                         traefik.backend: prometheus
                         plugsy.name: Prometheus
@@ -557,13 +563,14 @@ services:
                 image: zquestz/dnscrypt-server:latest
                 container_name: dnscrypt
                 restart: always
-                command: "init -N ${DOMAIN} -E '10.2.0.150:5443'"
+                command: "init -N ${DOMAIN} -E '10.2.0.150:5443' -M 0.0.0.0:9100"
                 networks:
                         private_network:
                                 ipv4_address: 10.2.0.150
                 ports:
-                        - 5443:5443/udp
-                        - 5443:5443/tcp
+                        - 5443:553/udp
+                        - 5443:553/tcp
+                        - 9100:9100
                 volumes:
                         - config-dnscrypt:/opt/encrypted-dns/etc/keys
                 environment: *env-vars
@@ -765,9 +772,9 @@ services:
                         timeout: 3s
                         retries: 3
                 labels:
-                        traefik.port: 8384
                         traefik.http.routers.sync.rule: Host(`sync.${DOMAIN}`)
                         traefik.http.routers.sync.entrypoints: websecure
+                        traefik.http.services.sync.loadbalancer.server.port: 8384
                         traefik.http.routers.sync.tls: true
                         plugsy.name: Syncthing
                         plugsy.category: Cloud
@@ -805,6 +812,26 @@ services:
                         plugsy.category: System
                         plugsy.link: https://vault.${DOMAIN}
 
+        freshrss:
+                image: lscr.io/linuxserver/freshrss
+                container_name: freshrss
+                restart: unless-stopped
+                environment: *env-vars
+                networks:
+                        - web
+                volumes:
+                        - config-freshrss:/config
+                ports:
+                        - 85:80
+                labels:
+                        traefik.port: 85
+                        traefik.http.routers.freshrss.rule: Host(`rss.${DOMAIN}`)
+                        traefik.http.routers.freshrss.entrypoints: websecure
+                        traefik.http.routers.freshrss.tls: true
+                        plugsy.name: FreshRSS
+                        plugsy.category: Cloud
+                        plugsy.link: https://rss.${DOMAIN}
+
         ###
         #           ____                                            
         #         ,'  , `.                                          
@@ -841,9 +868,9 @@ services:
                         timeout: 30s
                         retries: 3
                 labels:
-                        traefik.port: 7878
                         traefik.http.routers.radarr.rule: Host(`request.${DOMAIN}`) && PathPrefix(`/movies`)
                         traefik.http.routers.radarr.entrypoints: websecure
+                        traefik.http.services.radarr.loadbalancer.server.port: 7878
                         traefik.http.routers.radarr.tls: true
                         plugsy.name: Radarr
                         plugsy.category: Media
@@ -868,9 +895,9 @@ services:
                         timeout: 30s
                         retries: 3
                 labels:
-                        traefik.port: 8989
                         traefik.http.routers.sonarr.rule: Host(`request.${DOMAIN}`) && PathPrefix(`/shows`)
                         traefik.http.routers.sonarr.entrypoints: websecure
+                        traefik.http.services.sonarr.loadbalancer.server.port: 8989
                         traefik.http.routers.sonarr.tls: true
                         plugsy.name: Sonarr
                         plugsy.category: Media
@@ -985,9 +1012,9 @@ services:
                         timeout: 30s
                         retries: 3
                 labels:
-                        traefik.port: 9696
                         traefik.http.routers.prowlarr.rule: Host(`request.${DOMAIN}`) && PathPrefix(`/indexers`)
                         traefik.http.routers.prowlarr.entrypoints: websecure
+                        traefik.http.services.prowlarr.loadbalancer.server.port: 9696
                         traefik.http.routers.prowlarr.tls: true
                         plugsy.name: Prowlarr
                         plugsy.category: Media
@@ -1016,19 +1043,18 @@ services:
                         retries: 5
                         start_period: 30s
                 labels:
-                        traefik.port: 8980
-                        traefik.http.routers.qbittorrent.rule: Host(`request.${DOMAIN}`)
+                        traefik.http.routers.qbittorrent.rule: Host(`downloads.${DOMAIN}`)
                         traefik.http.routers.qbittorrent.entrypoints: websecure
+                        traefik.http.services.qbittorrent.loadbalancer.server.port: 8980
+                        traefik.http.services.qbittorrent.loadbalancer.passhostheader: false
                         traefik.http.routers.qbittorrent.tls: true
                         traefik.http.middlewares.qbittorrent-headers.headers.customrequestheaders.X-Frame-Options: SAMEORIGIN
                         traefik.http.middlewares.qbittorrent-headers.headers.customrequestheaders.Referer: ""
                         traefik.http.middlewares.qbittorrent-headers.headers.customrequestheaders.Origin: ""
                         traefik.http.routers.qbittorrent.middlewares: qbittorrent-headers
-                        traefik.http.services.qbittorrent.loadbalancer.server.port: 8980
-                        traefik.http.services.qbittorrent.loadbalancer.passhostheader: false
                         plugsy.name: qBittorrent
                         plugsy.category: Media
-                        plugsy.link: https://request.${DOMAIN}
+                        plugsy.link: https://downloads.${DOMAIN}
 
         jellyseerr:
                 image: fallenbagel/jellyseerr
@@ -1042,13 +1068,13 @@ services:
                 volumes:
                         - config-jellyseerr:/app/config
                 labels:
-                        traefik.port: 5055
-                        traefik.http.routers.jellyseer.rule: Host(`seer.${DOMAIN}`)
-                        traefik.http.routers.jellyseer.entrypoints: websecure
-                        traefik.http.routers.jellyseer.tls: true
+                        traefik.http.routers.jellyseerr.rule: Host(`request.${DOMAIN}`)
+                        traefik.http.routers.jellyseerr.entrypoints: websecure
+                        traefik.http.services.jellyseerr.loadbalancer.server.port: 5055
+                        traefik.http.routers.jellyseerr.tls: true
                         plugsy.name: Jellyseerr
                         plugsy.category: Media
-                        plugsy.link: https://seer.${DOMAIN}
+                        plugsy.link: https://request.${DOMAIN}
 
         mediaelch:
                 image: masonxx/mediaelch
@@ -1066,9 +1092,9 @@ services:
                         - 5800:5800
                         - 5900:5900
                 labels:
-                        traefik.port: 5800
                         traefik.http.routers.mediaelch.rule: Host(`metadata.${DOMAIN}`)
                         traefik.http.routers.mediaelch.entrypoints: websecure
+                        traefik.http.services.mediaelch.loadbalancer.server.port: 5800
                         traefik.http.routers.mediaelch.tls: true
                         plugsy.name: Mediaelch
                         plugsy.category: Media
@@ -1082,7 +1108,7 @@ services:
                 cpu_percent: 75
                 environment:
                         <<: *env-vars
-                        DOCKER_MODS: linuxserver/mods:jellyfin-opencl-intel
+                        # DOCKER_MODS: linuxserver/mods:jellyfin-opencl-intel
                 volumes:
                         - config-jellyfin:/config
                         - config-jellyfin-cache:/cache
