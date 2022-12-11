@@ -1,1119 +1,1132 @@
 version: '3.7'
 
 x-common-env-variables:
-        &env-vars
-        PUID: ${PUID}
-        PGID: ${PGID}
-        TZ: ${TIMEZONE}
+    &env-vars
+    PUID: ${PUID}
+    PGID: ${PGID}
+    TZ: ${TIMEZONE}
 
 x-common-driver-variables:
-        &driver-opts
-        type: none
-        o: bind
+    &driver-opts
+    type: none
+    o: bind
 
 x-common-dns:
-        &dns
-        network_mode: bridge
-        dns:
-                - 10.2.0.100
-                - 127.0.0.1
+    &dns
+    network_mode: bridge
+    dns:
+        - 10.2.0.100
+        - 127.0.0.1
 
 x-common-networks:
-        &networks
-        networks:
-                - web
-                - private_network
+    &networks
+    networks:
+        - web
+        - private_network
 
 x-common-networking:
-        &networking
-        <<: *dns
-        <<: *networks
+    &networking
+    <<: *dns
+    <<: *networks
 
 networks:
-        web:
-                external: true
-        internal:
-                external: false
-        private_network:
-                ipam:
-                        driver: default
-                        config:
-                                - subnet: 10.2.0.0/24
+    web:
+        external: false
+    internal:
+        external: false
+    private_network:
+        ipam:
+            driver: default
+            config:
+                - subnet: 10.2.0.0/24
 
 volumes:
-        config-adguard:
-                driver_opts:
-                        <<: *driver-opts
-                        device: ${CONFIG_DIR}/adguard
-        config-bookstack:
-                driver_opts:
-                        <<: *driver-opts
-                        device: ${CONFIG_DIR}/bookstack
-        config-calibre-web:
-                driver_opts:
-                        <<: *driver-opts
-                        device: ${CONFIG_DIR}/calibre-web
-        config-code:
-                driver_opts:
-                        <<: *driver-opts
-                        device: ${CONFIG_DIR}/code
-        config-dnscrypt:
-                driver_opts:
-                        <<: *driver-opts
-                        device: ${CONFIG_DIR}/dnscrypt
-        config-freshrss:
-                driver_opts:
-                        <<: *driver-opts
-                        device: ${CONFIG_DIR}/freshrss
-        config-grafana:
-                driver_opts:
-                        <<: *driver-opts
-                        device: ${CONFIG_DIR}/grafana/config
-        config-grafana-data:
-                driver_opts:
-                        <<: *driver-opts
-                        device: ${CONFIG_DIR}/grafana/data
-        config-grafana-home:
-                driver_opts:
-                        <<: *driver-opts
-                        device: ${CONFIG_DIR}/grafana/home
-        config-jellyfin:
-                driver_opts:
-                        <<: *driver-opts
-                        device: ${CONFIG_DIR}/jellyfin
-        config-jellyfin-cache:
-                driver_opts:
-                        <<: *driver-opts
-                        device: ${CONFIG_DIR}/jellyfin/cache
-        config-jellyseerr:
-                driver_opts:
-                        <<: *driver-opts
-                        device: ${CONFIG_DIR}/jellyseerr
-        config-lidarr:
-                driver_opts:
-                        <<: *driver-opts
-                        device: ${CONFIG_DIR}/lidarr
-        config-mariadb:
-                driver_opts:
-                        <<: *driver-opts
-                        device: ${CONFIG_DIR}/mariadb
-        config-mediaelch:
-                driver_opts:
-                        <<: *driver-opts
-                        device: ${CONFIG_DIR}/mediaelch
-        config-mongo:
-                driver_opts:
-                        <<: *driver-opts
-                        device: ${CONFIG_DIR}/mongo
-        config-prometheus:
-                driver_opts:
-                        <<: *driver-opts
-                        device: ${CONFIG_DIR}/prometheus
-        config-prowlarr:
-                driver_opts:
-                        <<: *driver-opts
-                        device: ${CONFIG_DIR}/prowlarr
-        config-qbittorrent:
-                driver_opts:
-                        <<: *driver-opts
-                        device: ${CONFIG_DIR}/qbittorrent
-        config-radarr:
-                driver_opts:
-                        <<: *driver-opts
-                        device: ${CONFIG_DIR}/radarr
-        config-readarr:
-                driver_opts:
-                        <<: *driver-opts
-                        device: ${CONFIG_DIR}/readarr
-        config-sonarr:
-                driver_opts:
-                        <<: *driver-opts
-                        device: ${CONFIG_DIR}/sonarr
-        config-syncthing:
-                driver_opts:
-                        <<: *driver-opts
-                        device: ${CONFIG_DIR}/syncthing
-        config-tdarr:
-                driver_opts:
-                        <<: *driver-opts
-                        device: ${CONFIG_DIR}/tdarr/config
-        config-tdarr-logs:
-                driver_opts:
-                        <<: *driver-opts
-                        device: ${CONFIG_DIR}/tdarr/logs
-        config-tdarr-server:
-                driver_opts:
-                        <<: *driver-opts
-                        device: ${CONFIG_DIR}/tdarr/server
-        config-traefik:
-                driver_opts:
-                        <<: *driver-opts
-                        device: ${CONFIG_DIR}/traefik
-        config-unbound:
-                driver_opts:
-                        <<: *driver-opts
-                        device: ${CONFIG_DIR}/unbound
-        config-vaultwarden:
-                driver_opts:
-                        <<: *driver-opts
-                        device: ${CONFIG_DIR}/vaultwarden
-        config-youtubedl-appdata:
-                driver_opts:
-                        <<: *driver-opts
-                        device: ${CONFIG_DIR}/youtube/appdata
-        config-youtubedl-subscriptions:
-                driver_opts:
-                        <<: *driver-opts
-                        device: ${CONFIG_DIR}/youtube/subscriptions
-        config-youtubedl-users:
-                driver_opts:
-                        <<: *driver-opts
-                        device: ${CONFIG_DIR}/youtube/users
-        downloads:
-                driver_opts:
-                        <<: *driver-opts
-                        device: ${DOWNLOAD_DIR}
-        media:
-                driver_opts:
-                        <<: *driver-opts
-                        device: ${DATA_DIR}
-        media-books:
-                driver_opts:
-                        <<: *driver-opts
-                        device: ${DATA_DIR}/Books
-        media-movies:
-                driver_opts:
-                        <<: *driver-opts
-                        device: ${DATA_DIR}/Movies
-        media-music:
-                driver_opts:
-                        <<: *driver-opts
-                        device: ${DATA_DIR}/Music
-        media-shows:
-                driver_opts:
-                        <<: *driver-opts
-                        device: ${DATA_DIR}/Television Shows
-        media-youtube:
-                driver_opts:
-                        <<: *driver-opts
-                        device: ${DATA_DIR}/Youtube
-        sync:
-                driver_opts:
-                        <<: *driver-opts
-                        device: ${SYNC_DIR}
+    config-adguard:
+        driver_opts:
+            <<: *driver-opts
+            device: ${CONFIG_DIR}/adguard
+    config-bookstack:
+        driver_opts:
+            <<: *driver-opts
+            device: ${CONFIG_DIR}/bookstack
+    config-calibre-web:
+        driver_opts:
+            <<: *driver-opts
+            device: ${CONFIG_DIR}/calibre-web
+    config-code:
+        driver_opts:
+            <<: *driver-opts
+            device: ${CONFIG_DIR}/code
+    config-dnscrypt:
+        driver_opts:
+            <<: *driver-opts
+            device: ${CONFIG_DIR}/dnscrypt
+    config-freshrss:
+        driver_opts:
+            <<: *driver-opts
+            device: ${CONFIG_DIR}/freshrss
+    config-grafana:
+        driver_opts:
+            <<: *driver-opts
+            device: ${CONFIG_DIR}/grafana/config
+    config-grafana-data:
+        driver_opts:
+            <<: *driver-opts
+            device: ${CONFIG_DIR}/grafana/data
+    config-grafana-home:
+        driver_opts:
+            <<: *driver-opts
+            device: ${CONFIG_DIR}/grafana/home
+    config-jellyfin:
+        driver_opts:
+            <<: *driver-opts
+            device: ${CONFIG_DIR}/jellyfin
+    config-jellyfin-cache:
+        driver_opts:
+            <<: *driver-opts
+            device: ${CONFIG_DIR}/jellyfin/cache
+    config-jellyseerr:
+        driver_opts:
+            <<: *driver-opts
+            device: ${CONFIG_DIR}/jellyseerr
+    config-lidarr:
+        driver_opts:
+            <<: *driver-opts
+            device: ${CONFIG_DIR}/lidarr
+    config-mariadb:
+        driver_opts:
+            <<: *driver-opts
+            device: ${CONFIG_DIR}/mariadb
+    config-mediaelch:
+        driver_opts:
+            <<: *driver-opts
+            device: ${CONFIG_DIR}/mediaelch
+    config-mongo:
+        driver_opts:
+            <<: *driver-opts
+            device: ${CONFIG_DIR}/mongo
+    config-onedev:
+        driver_opts:
+            <<: *driver-opts
+            device: ${CONFIG_DIR}/onedev
+    config-prometheus:
+        driver_opts:
+            <<: *driver-opts
+            device: ${CONFIG_DIR}/prometheus
+    config-prowlarr:
+        driver_opts:
+            <<: *driver-opts
+            device: ${CONFIG_DIR}/prowlarr
+    config-qbittorrent:
+        driver_opts:
+            <<: *driver-opts
+            device: ${CONFIG_DIR}/qbittorrent
+    config-radarr:
+        driver_opts:
+            <<: *driver-opts
+            device: ${CONFIG_DIR}/radarr
+    config-readarr:
+        driver_opts:
+            <<: *driver-opts
+            device: ${CONFIG_DIR}/readarr
+    config-sonarr:
+        driver_opts:
+            <<: *driver-opts
+            device: ${CONFIG_DIR}/sonarr
+    config-syncthing:
+        driver_opts:
+            <<: *driver-opts
+            device: ${CONFIG_DIR}/syncthing
+    config-tdarr:
+        driver_opts:
+            <<: *driver-opts
+            device: ${CONFIG_DIR}/tdarr/config
+    config-tdarr-logs:
+        driver_opts:
+            <<: *driver-opts
+            device: ${CONFIG_DIR}/tdarr/logs
+    config-tdarr-server:
+        driver_opts:
+            <<: *driver-opts
+            device: ${CONFIG_DIR}/tdarr/server
+    config-traefik:
+        driver_opts:
+            <<: *driver-opts
+            device: ${CONFIG_DIR}/traefik
+    config-unbound:
+        driver_opts:
+            <<: *driver-opts
+            device: ${CONFIG_DIR}/unbound
+    config-vaultwarden:
+        driver_opts:
+            <<: *driver-opts
+            device: ${CONFIG_DIR}/vaultwarden
+    config-vikunja:
+        driver_opts:
+            <<: *driver-opts
+            device: ${CONFIG_DIR}/vikunja
+    config-vikunja-db:
+        driver_opts:
+            <<: *driver-opts
+            device: ${CONFIG_DIR}/vikunja-db
+    config-youtubedl-appdata:
+        driver_opts:
+            <<: *driver-opts
+            device: ${CONFIG_DIR}/youtube/appdata
+    config-youtubedl-subscriptions:
+        driver_opts:
+            <<: *driver-opts
+            device: ${CONFIG_DIR}/youtube/subscriptions
+    config-youtubedl-users:
+        driver_opts:
+            <<: *driver-opts
+            device: ${CONFIG_DIR}/youtube/users
+    downloads:
+        driver_opts:
+            <<: *driver-opts
+            device: ${DOWNLOAD_DIR}
+    media:
+        driver_opts:
+            <<: *driver-opts
+            device: ${DATA_DIR}
+    media-archive:
+        driver_opts:
+            <<: *driver-opts
+            device: ${DATA_DIR}/Archive
+    media-books:
+        driver_opts:
+            <<: *driver-opts
+            device: ${DATA_DIR}/Books
+    media-movies:
+        driver_opts:
+            <<: *driver-opts
+            device: ${DATA_DIR}/Movies
+    media-music:
+        driver_opts:
+            <<: *driver-opts
+            device: ${DATA_DIR}/Music
+    media-shows:
+        driver_opts:
+            <<: *driver-opts
+            device: ${DATA_DIR}/Television Shows
+    media-youtube:
+        driver_opts:
+            <<: *driver-opts
+            device: ${DATA_DIR}/Youtube
+    sync:
+        driver_opts:
+            <<: *driver-opts
+            device: ${SYNC_DIR}
 
 services:
-        # ###
-        #    ,---,                            ____                        
-        #   '  .' \            ,---,        ,'  , `.  ,--,                
-        #  /  ;    '.        ,---.'|     ,-+-,.' _ |,--.'|         ,---,  
-        # :  :       \       |   | :  ,-+-. ;   , |||  |,      ,-+-. /  | 
-        # :  |   /\   \      |   | | ,--.'|'   |  ||`--'_     ,--.'|'   | 
-        # |  :  ' ;.   :   ,--.__| ||   |  ,', |  |,,' ,'|   |   |  ,"' | 
-        # |  |  ;/  \   \ /   ,'   ||   | /  | |--' '  | |   |   | /  | | 
-        # '  :  | \  \ ,'.   '  /  ||   : |  | ,    |  | :   |   | |  | | 
-        # |  |  '  '--'  '   ; |:  ||   : |  |/     '  : |__ |   | |  |/  
-        # |  :  :        |   | '/  '|   | |`-'      |  | '.'||   | |--'   
-        # |  | ,'        |   :    :||   ;/          ;  :    ;|   |/       
-        # `--''           \   \  /  '---'           |  ,   / '---'        
-        #                  `----'                    ---`-'               
-        ###
+    ###
+    #               _           _       
+    #      /\      | |         (_)      
+    #     /  \   __| |_ __ ___  _ _ __  
+    #    / /\ \ / _` | '_ ` _ \| | '_ \ 
+    #   / ____ \ (_| | | | | | | | | | |
+    #  /_/    \_\__,_|_| |_| |_|_|_| |_|
+    ###
 
-        traefik:
-                container_name: traefik
-                image: traefik:2.8
-                restart: unless-stopped
-                command:
-                        - "--api=true"
-                        - "--api.dashboard=true"
-                        - "--certificatesresolvers.letsencrypt.acme.caserver=https://acme-v02.api.letsencrypt.org/directory"
-                        - "--certificatesresolvers.letsencrypt.acme.dnschallenge.delaybeforecheck=0"
-                        - "--certificatesresolvers.letsencrypt.acme.dnschallenge.provider=cloudflare"
-                        - "--certificatesresolvers.letsencrypt.acme.dnschallenge.resolvers=1.1.1.1:53,8.8.8.8:53"
-                        - "--certificatesresolvers.letsencrypt.acme.email=${ADMIN_EMAIL}"
-                        - "--certificatesresolvers.letsencrypt.acme.storage=/config/acme.json"
-                        - "--entrypoints.web.address=:80"
-                        - "--experimental.http3=true"
-                        - "--entrypoints.websecure.address=:443"
-                        - "--entrypoints.websecure.http3"
-                        - "--entrypoints.websecure.http.tls.certResolver=letsencrypt"
-                        - "--entrypoints.websecure.http.tls.domains[0].main=${DOMAIN}"
-                        - "--entrypoints.websecure.http.tls.domains[0].sans=*.${DOMAIN}"
-                        - "--ping=true"
-                        - "--metrics.prometheus=true"
-                        - "--providers.docker=true"
-                        - "--providers.docker.watch=true"
-                        - "--providers.docker.exposedbydefault=true"
-                environment:
-                        <<: *env-vars
-                        CLOUDFLARE_DNS_API_TOKEN: ${CLOUDFLARE_DNS_API_TOKEN}
-                ports:
-                        - 80:80
-                        - 443:443/tcp
-                        - 443:443/udp
-                        - 8080:8080
-                        - 8888:8888
-                volumes:
-                        - /var/run/docker.sock:/var/run/docker.sock
-                        - config-traefik:/config
-                networks:
-                        - internal
-                        - web
-                        - private_network
-                <<: *dns
-                healthcheck:
-                        test: [ "CMD", "traefik", "healthcheck", "--ping" ]
-                        interval: 30s
-                        timeout: 3s
-                        retries: 3
-                labels:
-                        traefik.http.routers.dashboard.rule: Host(`dash.${DOMAIN}`)
-                        traefik.http.routers.dashboard.service: api@internal
-                        traefik.http.middlewares.dashboard-auth.basicauth.users: admin:$$apr1$$w2iKX3VV$$K7lu318dfpWODDanrGEFF1
-                        traefik.http.routers.dashboard.middlewares: dashboard-auth
-                        traefik.http.routers.dashboard.tls: true
-                        traefik.http.routers.dashboard.tls.certResolver: letsencrypt
-                        traefik.http.routers.http-catchall.rule: hostregexp(`{host:.+}`)
-                        traefik.http.routers.http-catchall.entrypoints: web
-                        traefik.http.routers.http-catchall.middlewares: redirect-to-https
-                        traefik.http.middlewares.redirect-to-https.redirectscheme.scheme: https
-                        traefik.http.middlewares.redirect-to-https.redirectScheme.permanent: true
+    traefik:
+        container_name: traefik
+        image: traefik:2.8
+        restart: unless-stopped
+        command:
+            - "--api=true"
+            - "--api.dashboard=true"
+            - "--certificatesresolvers.letsencrypt.acme.caserver=https://acme-v02.api.letsencrypt.org/directory"
+            - "--certificatesresolvers.letsencrypt.acme.dnschallenge.delaybeforecheck=0"
+            - "--certificatesresolvers.letsencrypt.acme.dnschallenge.provider=cloudflare"
+            - "--certificatesresolvers.letsencrypt.acme.dnschallenge.resolvers=1.1.1.1:53,8.8.8.8:53"
+            - "--certificatesresolvers.letsencrypt.acme.email=${ADMIN_EMAIL}"
+            - "--certificatesresolvers.letsencrypt.acme.storage=/config/acme.json"
+            - "--entrypoints.web.address=:80"
+            - "--experimental.http3=true"
+            - "--entrypoints.websecure.address=:443"
+            - "--entrypoints.websecure.http3"
+            - "--entrypoints.websecure.http.tls.certResolver=letsencrypt"
+            - "--entrypoints.websecure.http.tls.domains[0].main=${DOMAIN}"
+            - "--entrypoints.websecure.http.tls.domains[0].sans=*.${DOMAIN}"
+            - "--ping=true"
+            - "--metrics.prometheus=true"
+            - "--providers.docker=true"
+            - "--providers.docker.watch=true"
+            - "--providers.docker.exposedbydefault=true"
+            - "--providers.docker.network=web"
+        environment:
+            <<: *env-vars
+            CLOUDFLARE_DNS_API_TOKEN: ${CLOUDFLARE_DNS_API_TOKEN}
+        ports:
+            - 80:80
+            - 443:443/tcp
+            - 443:443/udp
+            - 8080:8080
+            - 8888:8888
+        volumes:
+            - /var/run/docker.sock:/var/run/docker.sock
+            - config-traefik:/config
+        networks:
+            - internal
+            - web
+            - private_network
+        <<: *dns
+        healthcheck:
+            test: [ "CMD", "traefik", "healthcheck", "--ping" ]
+            interval: 30s
+            timeout: 3s
+            retries: 3
+        labels:
+            traefik.http.routers.dashboard.rule: Host(`dash.${DOMAIN}`)
+            traefik.http.routers.dashboard.service: api@internal
+            traefik.http.middlewares.dashboard-auth.basicauth.users: admin:$$apr1$$w2iKX3VV$$K7lu318dfpWODDanrGEFF1
+            traefik.http.routers.dashboard.middlewares: dashboard-auth
+            traefik.http.routers.dashboard.tls: true
+            traefik.http.routers.dashboard.tls.certResolver: letsencrypt
+            traefik.http.routers.http-catchall.rule: hostregexp(`{host:.+}`)
+            traefik.http.routers.http-catchall.entrypoints: web
+            traefik.http.routers.http-catchall.middlewares: redirect-to-https
+            traefik.http.middlewares.redirect-to-https.redirectscheme.scheme: https
+            traefik.http.middlewares.redirect-to-https.redirectScheme.permanent: true
 
-        ###
-        #           ____                                                               
-        #         ,'  , `.             ___                                             
-        #      ,-+-,.' _ |           ,--.'|_             ,--,                          
-        #   ,-+-. ;   , ||           |  | :,'   __  ,-.,--.'|                          
-        #  ,--.'|'   |  ;|           :  : ' : ,' ,'/ /||  |,                .--.--.    
-        # |   |  ,', |  ':  ,---.  .;__,'  /  '  | |' |`--'_       ,---.   /  /    '   
-        # |   | /  | |  || /     \ |  |   |   |  |   ,',' ,'|     /     \ |  :  /`./   
-        # '   | :  | :  |,/    /  |:__,'| :   '  :  /  '  | |    /    / ' |  :  ;_     
-        # ;   . |  ; |--'.    ' / |  '  : |__ |  | '   |  | :   .    ' /   \  \    `.  
-        # |   : |  | ,   '   ;   /|  |  | '.'|;  : |   '  : |__ '   ; :__   `----.   \ 
-        # |   : '  |/    '   |  / |  ;  :    ;|  , ;   |  | '.'|'   | '.'| /  /`--'  / 
-        # ;   | |`-'     |   :    |  |  ,   /  ---'    ;  :    ;|   :    :'--'.     /  
-        # |   ;/          \   \  /    ---`-'           |  ,   /  \   \  /   `--'---'   
-        # '---'            `----'                       ---`-'    `----'             
-        ###
+    ###
+    #   __  __      _        _          
+    #  |  \/  |    | |      (_)         
+    #  | \  / | ___| |_ _ __ _  ___ ___ 
+    #  | |\/| |/ _ \ __| '__| |/ __/ __|
+    #  | |  | |  __/ |_| |  | | (__\__ \
+    #  |_|  |_|\___|\__|_|  |_|\___|___/
+    ### 
 
-        prometheus:
-                image: prom/prometheus
-                container_name: prometheus
-                restart: unless-stopped
-                <<: *networking
-                entrypoint: ["/bin/sh","-c"]
-                command:
-                        - "rm -rf /prometheus/data/chunks_head; /bin/prometheus --config.file=/etc/prometheus/prometheus.yml --storage.tsdb.path=/prometheus"
-                volumes:
-                        - config-prometheus:/etc/prometheus
-                ports:
-                        - 9090:9090
-                healthcheck:
-                        test:
-                                [
-                                        "CMD-SHELL",
-                                        "wget --spider http://localhost:9090 || exit 1"
-                                ]
-                        interval: 10s
-                        timeout: 15s
-                        retries: 10
-                        start_period: 40s
-                labels:
-                        traefik.http.routers.prometheus.rule: Host(`prometheus.${DOMAIN}`)
-                        traefik.http.routers.prometheus.entrypoints: websecure
-                        traefik.http.services.prometheus.loadbalancer.server.port: 9090
-                        traefik.http.routers.prometheus.tls: true
-                        traefik.http.routers.prometheus.tls.certResolver: letsencrypt
-                        traefik.backend: prometheus
+    prometheus:
+        image: prom/prometheus
+        container_name: prometheus
+        restart: unless-stopped
+        <<: *networking
+        entrypoint: [ "/bin/sh", "-c" ]
+        command:
+            - "rm -rf /prometheus/data/chunks_head; /bin/prometheus --config.file=/etc/prometheus/prometheus.yml --storage.tsdb.path=/prometheus"
+        volumes:
+            - config-prometheus:/etc/prometheus
+        ports:
+            - 9090:9090
+        healthcheck:
+            test:
+                [
+                    "CMD-SHELL",
+                    "wget --spider http://localhost:9090 || exit 1"
+                ]
+            interval: 10s
+            timeout: 15s
+            retries: 10
+            start_period: 40s
+        labels:
+            traefik.http.routers.prometheus.rule: Host(`prometheus.${DOMAIN}`)
+            traefik.http.routers.prometheus.entrypoints: websecure
+            traefik.http.services.prometheus.loadbalancer.server.port: 9090
+            traefik.http.routers.prometheus.tls: true
+            traefik.http.routers.prometheus.tls.certResolver: letsencrypt
+            traefik.backend: prometheus
 
-        grafana:
-                image: grafana/grafana
-                container_name: grafana
-                restart: unless-stopped
-                <<: *networking
-                ports:
-                        - 3001:3000
-                user: '104'
-                environment:
-                        GF_SERVER_ROOT_URL: https://metrics.${DOMAIN}
-                volumes:
-                        - config-grafana:/etc/grafana
-                        - config-grafana-data:/var/lib/grafana
-                        - config-grafana-home:/usr/share/grafana
-                healthcheck:
-                        test:
-                                [
-                                        "CMD-SHELL",
-                                        "wget --spider http://localhost:3000 || exit 1"
-                                ]
-                        interval: 10s
-                        timeout: 15s
-                        retries: 10
-                        start_period: 40s
-                labels:
-                        traefik.port: 3001
-                        traefik.http.routers.grafana.rule: Host(`metrics.${DOMAIN}`)
-                        traefik.http.routers.grafana.entrypoints: websecure
-                        traefik.http.routers.grafana.tls: true
-                        traefik.http.routers.grafana.tls.certResolver: letsencrypt
+    grafana:
+        image: grafana/grafana
+        container_name: grafana
+        restart: unless-stopped
+        <<: *networking
+        ports:
+            - 3001:3000
+        user: '104'
+        environment:
+            GF_SERVER_ROOT_URL: https://metrics.${DOMAIN}
+        volumes:
+            - config-grafana:/etc/grafana
+            - config-grafana-data:/var/lib/grafana
+            - config-grafana-home:/usr/share/grafana
+        healthcheck:
+            test:
+                [
+                    "CMD-SHELL",
+                    "wget --spider http://localhost:3000 || exit 1"
+                ]
+            interval: 10s
+            timeout: 15s
+            retries: 10
+            start_period: 40s
+        labels:
+            traefik.port: 3001
+            traefik.http.routers.grafana.rule: Host(`metrics.${DOMAIN}`)
+            traefik.http.routers.grafana.entrypoints: websecure
+            traefik.http.routers.grafana.tls: true
+            traefik.http.routers.grafana.tls.certResolver: letsencrypt
 
-        adguard_exporter:
-                image: ebrianne/adguard-exporter
-                container_name: adguard-exporter
-                restart: unless-stopped
-                <<: *networking
-                depends_on:
-                        - adguard
-                ports:
-                        - 9617:9617
-                environment:
-                        adguard_protocol: http
-                        adguard_hostname: adguard
-                        adguard_username: ${ADGUARD_USERNAME}
-                        adguard_password: ${ADGUARD_PASSWORD}
-                        adguard_port: 3000
-                        server_port: 9617
-                        interval: 10s
-                        log_limit: 10000
-                labels:
-                        traefik.enable: false
+    adguard_exporter:
+        image: ebrianne/adguard-exporter
+        container_name: adguard-exporter
+        restart: unless-stopped
+        <<: *networking
+        depends_on:
+            - adguard
+        ports:
+            - 9617:9617
+        environment:
+            adguard_protocol: http
+            adguard_hostname: adguard
+            adguard_username: ${ADGUARD_USERNAME}
+            adguard_password: ${ADGUARD_PASSWORD}
+            adguard_port: 3000
+            server_port: 9617
+            interval: 10s
+            log_limit: 10000
+        labels:
+            traefik.enable: false
 
-        node_exporter:
-                image: quay.io/prometheus/node-exporter
-                container_name: node-exporter
-                command:
-                        - '--path.rootfs=/host'
-                <<: *networking
-                pid: host
-                restart: unless-stopped
-                ports:
-                        - 9619:9100
-                volumes:
-                        - '/:/host:ro,rslave'
-                healthcheck:
-                        test: [ "CMD-SHELL", "/bin/netstat -pant | /bin/grep ':9100'" ]
-                        interval: 45s
-                        timeout: 30s
-                        retries: 3
-                labels:
-                        traefik.enable: false
-        ###
-        #                       ,--.             
-        #     ,---,           ,--.'|  .--.--.    
-        #   .'  .' `\     ,--,:  : | /  /    '.  
-        # ,---.'     \ ,`--.'`|  ' :|  :  /`. /  
-        # |   |  .`\  ||   :  :  | |;  |  |--`   
-        # :   : |  '  |:   |   \ | :|  :  ;_     
-        # |   ' '  ;  :|   : '  '; | \  \    `.  
-        # '   | ;  .  |'   ' ;.    ;  `----.   \ 
-        # |   | :  |  '|   | | \   |  __ \  \  | 
-        # '   : | /  ; '   : |  ; .' /  /`--'  / 
-        # |   | '` ,/  |   | '`--'  '--'.     /  
-        # ;   :  .'    '   : |        `--'---'   
-        # |   ,.'      ;   |.'                   
-        # '---'        '---'                     
-        ###
+    node_exporter:
+        image: quay.io/prometheus/node-exporter
+        container_name: node-exporter
+        command:
+            - '--path.rootfs=/host'
+        <<: *networking
+        pid: host
+        restart: unless-stopped
+        ports:
+            - 9619:9100
+        volumes:
+            - '/:/host:ro,rslave'
+        healthcheck:
+            test: [ "CMD-SHELL", "/bin/netstat -pant | /bin/grep ':9100'" ]
+            interval: 45s
+            timeout: 30s
+            retries: 3
+        labels:
+            traefik.enable: false
 
-        unbound:
-                image: mvance/unbound
-                container_name: unbound
-                hostname: unbound
-                restart: always
-                networks:
-                        private_network:
-                                ipv4_address: 10.2.0.200
-                volumes:
-                        - config-unbound:/opt/unbound/etc/unbound/
-                environment: *env-vars
-                labels:
-                        traefik.enable: false
+    ###
+    #   _____  _   _  _____ 
+    #  |  __ \| \ | |/ ____|
+    #  | |  | |  \| | (___  
+    #  | |  | | . ` |\___ \ 
+    #  | |__| | |\  |____) |
+    #  |_____/|_| \_|_____/ 
+    ###                
 
-        dnscrypt:
-                image: zquestz/dnscrypt-server:latest
-                container_name: dnscrypt
-                restart: always
-                command: "init -N ${DOMAIN} -E '10.2.0.150:5443' -M 0.0.0.0:9100"
-                networks:
-                        private_network:
-                                ipv4_address: 10.2.0.150
-                ports:
-                        - 5443:553/udp
-                        - 5443:553/tcp
-                        - 9100:9100
-                volumes:
-                        - config-dnscrypt:/opt/encrypted-dns/etc/keys
-                environment: *env-vars
-                healthcheck:
-                        test:
-                                [
-                                        "CMD-SHELL",
-                                        "drill -p 553 one.one.one.one @127.0.0.1 || exit 1"
-                                ]
-                        interval: 1m30s
-                        timeout: 30s
-                        retries: 5
-                        start_period: 30s
-                labels:
-                        traefik.enable: false
+    unbound:
+        image: mvance/unbound
+        container_name: unbound
+        hostname: unbound
+        restart: always
+        networks:
+            private_network:
+                ipv4_address: 10.2.0.200
+        volumes:
+            - config-unbound:/opt/unbound/etc/unbound/
+        environment: *env-vars
+        labels:
+            traefik.enable: false
 
-        adguard:
-                container_name: adguard
-                image: adguard/adguardhome
-                restart: always
-                depends_on:
-                        - unbound
-                        - dnscrypt
-                volumes:
-                        - config-adguard:/opt/adguardhome/conf
-                dns:
-                        - 127.0.0.1
-                        - 10.2.0.200
-                        - 10.2.0.150
-                # network_mode: host
-                networks:
-                        private_network:
-                                ipv4_address: 10.2.0.100
-                ports:
-                        - 53:53/tcp
-                        - 53:53/udp
-                        - 67:67/udp
-                          #- 68:68/tcp
-                          #- 68:68/udp
-                        - 784:784/tcp
-                        - 784:784/udp
-                        - 853:853/tcp
-                        - 853:853/udp
-                        - 4443:443/tcp
-                        - 4443:443/udp
-                        - 8853:8853/udp
-                        - 192.168.1.123:3000:3000/tcp
-                healthcheck:
-                        test: [ "CMD-SHELL", "/bin/netstat -pant | /bin/grep :53" ]
-                        interval: 45s
-                        timeout: 30s
-                        retries: 3
-                labels:
-                        traefik.http.routers.adguard.rule: Host(`dns.${DOMAIN}`)
-                        traefik.http.services.adguard.loadbalancer.server.port: 3000
-                        traefik.http.routers.adguard.entrypoints: websecure
-                        traefik.http.routers.adguard.tls: true
-                        traefik.http.routers.adguard.tls.certResolver: letsencrypt
+    dnscrypt:
+        image: zquestz/dnscrypt-server:latest
+        container_name: dnscrypt
+        restart: always
+        command: "init -N ${DOMAIN} -E '10.2.0.150:5443' -M 0.0.0.0:9100"
+        networks:
+            private_network:
+                ipv4_address: 10.2.0.150
+        ports:
+            - 5443:553/udp
+            - 5443:553/tcp
+            - 9100:9100
+        volumes:
+            - config-dnscrypt:/opt/encrypted-dns/etc/keys
+        environment: *env-vars
+        healthcheck:
+            test:
+                [
+                    "CMD-SHELL",
+                    "drill -p 553 one.one.one.one @127.0.0.1 || exit 1"
+                ]
+            interval: 1m30s
+            timeout: 30s
+            retries: 5
+            start_period: 30s
+        labels:
+            traefik.enable: false
 
-        ###
-        #               ,--,                                             
-        #            ,---.'|       ,----..                               
-        #   ,----..  |   | :      /   /   \                    ,---,     
-        #  /   /   \ :   : |     /   .     :          ,--,   .'  .' `\   
-        # |   :     :|   ' :    .   /   ;.  \       ,'_ /| ,---.'     \  
-        # .   |  ;. /;   ; '   .   ;   /  ` ;  .--. |  | : |   |  .`\  | 
-        # .   ; /--` '   | |__ ;   |  ; \ ; |,'_ /| :  . | :   : |  '  | 
-        # ;   | ;    |   | :.'||   :  | ; | '|  ' | |  . . |   ' '  ;  : 
-        # |   : |    '   :    ;.   |  ' ' ' :|  | ' |  | | '   | ;  .  | 
-        # .   | '___ |   |  ./ '   ;  \; /  |:  | | :  ' ; |   | :  |  ' 
-        # '   ; : .'|;   : ;    \   \  ',  / |  ; ' |  | ' '   : | /  ;  
-        # '   | '/  :|   ,/      ;   :    /  :  | : ;  ; | |   | '` ,/   
-        # |   :    / '---'        \   \ .'   '  :  `--'   \;   :  .'     
-        #  \   \ .'                `---`     :  ,      .-./|   ,.'       
-        #   `---`                             `--`----'    '---'         
-        ###
+    adguard:
+        container_name: adguard
+        image: adguard/adguardhome
+        restart: always
+        depends_on:
+            - unbound
+            - dnscrypt
+        volumes:
+            - config-adguard:/opt/adguardhome/conf
+        dns:
+            - 127.0.0.1
+            - 10.2.0.200
+            - 10.2.0.150
+        networks:
+            private_network:
+                ipv4_address: 10.2.0.100
+        ports:
+            - 53:53/tcp
+            - 53:53/udp
+            - 67:67/udp
+            #- 68:68/tcp
+            #- 68:68/udp
+            - 4443:443/tcp
+            - 4443:443/udp
+            - 8853:8853/udp
+            - 192.168.1.123:3000:3000/tcp
+        healthcheck:
+            test: [ "CMD-SHELL", "/bin/netstat -pant | /bin/grep :53" ]
+            interval: 45s
+            timeout: 30s
+            retries: 3
+        labels:
+            traefik.http.routers.adguard.rule: Host(`dns.${DOMAIN}`)
+            traefik.http.services.adguard.loadbalancer.server.port: 3000
+            traefik.http.routers.adguard.entrypoints: websecure
+            traefik.http.routers.adguard.tls: true
+            traefik.http.routers.adguard.tls.certResolver: letsencrypt
 
-        cloud:
-                container_name: cloud
-                image: nextcloud
-                restart: unless-stopped
-                depends_on:
-                        - mariadb
-                environment:
-                        MYSQL_HOST: ${DATABASE_HOST}
-                        MYSQL_DATABASE: ${DATABASE}
-                        MYSQL_USER: ${DATABASE_USERNAME}
-                        MYSQL_PASSWORD: ${DATABASE_PASSWORD}
-                ports:
-                        - 8081:80
-                networks:
-                        - internal
-                        - web
-                        - private_network
-                <<: *dns
-                healthcheck:
-                        test: [ "CMD-SHELL", "curl --fail localhost" ]
-                        interval: 45s
-                        timeout: 30s
-                        retries: 3
-                labels:
-                        traefik.port: 8081
-                        traefik.http.routers.cloud.rule: Host(`cloud.${DOMAIN}`)
-                        traefik.http.routers.cloud.entrypoints: websecure
-                        traefik.http.routers.cloud.tls: true
-                        traefik.http.routers.cloud.tls.certResolver: letsencrypt
+    ###
+    #    _____ _                 _ 
+    #   / ____| |               | |
+    #  | |    | | ___  _   _  __| |
+    #  | |    | |/ _ \| | | |/ _` |
+    #  | |____| | (_) | |_| | (_| |
+    #   \_____|_|\___/ \__,_|\__,_|
+    ###
 
-        wiki:
-                container_name: wiki
-                image: lscr.io/linuxserver/bookstack
-                restart: unless-stopped
-                depends_on:
-                        - mariadb
-                environment:
-                        <<: *env-vars
-                        APP_URL: https://wiki.${DOMAIN}
-                        DB_HOST: ${DATABASE_HOST}
-                        DB_DATABASE: ${DATABASE}
-                        DB_USER: ${DATABASE_USERNAME}
-                        DB_PASS: ${DATABASE_PASSWORD}
-                volumes:
-                        - config-bookstack:/config
-                ports:
-                        - 6875:80
-                <<: *dns
-                networks:
-                        - internal
-                        - web
-                        - private_network
-                healthcheck:
-                        test:
-                                [
-                                        "CMD-SHELL",
-                                        "curl -s localhost/status | grep -vi 'false'"
-                                ]
-                        interval: 1m30s
-                        timeout: 30s
-                        retries: 5
-                        start_period: 30s
-                labels:
-                        traefik.port: 6875
-                        traefik.http.routers.wiki.rule: Host(`wiki.${DOMAIN}`)
-                        traefik.http.routers.wiki.entrypoints: websecure
-                        traefik.http.routers.wiki.tls: true
-                        traefik.http.routers.wiki.tls.certResolver: letsencrypt
+    archive:
+        image: ${DOCKER_IMAGE:-archivebox/archivebox:master}
+        container_name: archive
+        restart: unless-stopped
+        command: server --quick-init 0.0.0.0:8000
+        ports:
+            - 8000:8000
+        <<: *networking
+        environment:
+            <<: *env-vars
+            ALLOWED_HOSTS: "*"
+            MEDIA_MAX_SIZE: 750m
+        volumes:
+            - media-archive:/data
+        labels:
+            traefik.port: 8000
+            traefik.http.routers.archive.rule: Host(`archive.${DOMAIN}`)
+            traefik.http.routers.archive.entrypoints: websecure
+            traefik.http.routers.archive.tls: true
+            traefik.http.routers.archive.tls.certResolver: letsencrypt
 
-        code-server:
-                image: lscr.io/linuxserver/openvscode-server:latest
-                container_name: code-server
-                restart: unless-stopped
-                <<: *networking
-                environment:
-                        <<: *env-vars
-                        CONNECTION_TOKEN: ${CODE_PASSWORD}
-                        SUDO_PASSWORD: ${CODE_SUDO_PASSWORD}
-                        PROXY_DOMAIN: dev.${DOMAIN}
-                volumes:
-                        - config-code:/config
-                        - sync:/sync
-                ports:
-                        - 8443:8443
-                healthcheck:
-                        test: [ "CMD-SHELL", "curl localhost:3000" ]
-                        interval: 1m30s
-                        timeout: 30s
-                        retries: 5
-                        start_period: 30s
-                labels:
-                        traefik.port: 8443
-                        traefik.http.routers.code.rule: Host(`dev.${DOMAIN}`)
-                        traefik.http.routers.code.entrypoints: websecure
-                        traefik.http.routers.code.tls: true
-                        traefik.http.routers.code.tls.certResolver: letsencrypt
+    wiki:
+        container_name: wiki
+        image: lscr.io/linuxserver/bookstack
+        restart: unless-stopped
+        depends_on:
+            - mariadb
+        environment:
+            <<: *env-vars
+            APP_URL: https://wiki.${DOMAIN}
+            DB_HOST: ${DATABASE_HOST}
+            DB_DATABASE: ${DATABASE}
+            DB_USER: ${DATABASE_USERNAME}
+            DB_PASS: ${DATABASE_PASSWORD}
+        volumes:
+            - config-bookstack:/config
+        ports:
+            - 6875:80
+        <<: *dns
+        networks:
+            - internal
+            - web
+            - private_network
+        healthcheck:
+            test:
+                [
+                    "CMD-SHELL",
+                    "curl -s localhost/status | grep -vi 'false'"
+                ]
+            interval: 1m30s
+            timeout: 30s
+            retries: 5
+            start_period: 30s
+        labels:
+            traefik.port: 6875
+            traefik.http.routers.wiki.rule: Host(`wiki.${DOMAIN}`)
+            traefik.http.routers.wiki.entrypoints: websecure
+            traefik.http.routers.wiki.tls: true
+            traefik.http.routers.wiki.tls.certResolver: letsencrypt
 
-        sync:
-                container_name: sync
-                image: lscr.io/linuxserver/syncthing
-                restart: unless-stopped
-                environment: *env-vars
-                volumes:
-                        - config-syncthing:/config
-                        - sync:/config/Sync
-                ports:
-                        - 8384:8384
-                        - 22000:22000
-                        - 21027:21027/udp
-                <<: *networking
-                healthcheck:
-                        test: nc -z 127.0.0.1 8384 || exit 1
-                        interval: 30s
-                        timeout: 3s
-                        retries: 3
-                labels:
-                        traefik.http.routers.sync.rule: Host(`sync.${DOMAIN}`)
-                        traefik.http.routers.sync.entrypoints: websecure
-                        traefik.http.services.sync.loadbalancer.server.port: 8384
-                        traefik.http.routers.sync.tls: true
-                        traefik.http.routers.sync.tls.certResolver: letsencrypt
+    todo-api:
+        image: vikunja/api
+        container_name: todo-api
+        environment:
+            <<: *env-vars
+            VIKUNJA_DATABASE_HOST: todo-db
+            VIKUNJA_DATABASE_PASSWORD: ${DATABASE_PASSWORD}
+            VIKUNJA_DATABASE_TYPE: mysql
+            VIKUNJA_DATABASE_USER: ${DATABASE_USERNAME}
+            VIKUNJA_DATABASE_DATABASE: ${TODO_DATABASE}
+            VIKUNJA_SERVICE_JWTSECRET: ${JWT_SECRET}
+            VIKUNJA_SERVICE_FRONTENDURL: https://todo.${DOMAIN}/
+        volumes:
+            - config-vikunja:/app/vikunja/files
+        <<: *dns
+        networks:
+            - internal
+            - web
+            - private_network
+        depends_on:
+            - todo-db
+        restart: unless-stopped
+        labels:
+            traefik.http.routers.todo-api.rule: Host(`todo.${DOMAIN}`) && PathPrefix(`/api/v1`, `/dav/`, `/.well-known/`)
+            traefik.http.routers.todo-api.entrypoints: websecure
+            traefik.http.routers.todo-api.tls: true
+            traefik.http.routers.todo-api.tls.certResolver: letsencrypt
 
-        vaultwarden:
-                image: vaultwarden/server
-                container_name: vaultwarden
-                restart: unless-stopped
-                <<: *networking
-                volumes:
-                        - config-vaultwarden:/data
-                ports:
-                        - 8800:8800
-                        - 3012:3012
-                environment:
-                        <<: *env-vars
-                        DOMAIN: "https://vault.${DOMAIN}"
-                        ADMIN_TOKEN: ${VAULTWARDEN_TOKEN}
-                        WEBSOCKET_ENABLED: true
-                        ROCKET_PORT: 8800
-                labels:
-                        traefik.http.routers.vaultwarden-ui.rule: Host(`vault.${DOMAIN}`)
-                        traefik.http.services.vaultwarden-ui.loadbalancer.server.port: 8800
-                        traefik.http.routers.vaultwarden-ui.entrypoints: websecure
-                        traefik.http.routers.vaultwarden-ui.tls: true
-                        traefik.http.routers.vaultwarden-ui.tls.certResolver: letsencrypt
-                        traefik.http.routers.vaultwarden-ui.service: vaultwarden-ui
-                        traefik.http.routers.vaultwarden-websocket.rule: Host(`vault.${DOMAIN}`) && Path(`/notifications/hub`)
-                        traefik.http.routers.vaultwarden-websocket.entrypoints: websecure
-                        traefik.http.routers.vaultwarden-websocket.tls: true
-                        traefik.http.routers.vaultwarden-websocket.tls.certResolver: letsencrypt
-                        traefik.http.routers.vaultwarden-websocket.service: vaultwarden-websocket
-                        traefik.http.services.vaultwarden-websocket.loadbalancer.server.port: 3012
+    todo:
+        container_name: todo
+        image: vikunja/frontend
+        depends_on:
+            - todo-api
+        labels:
+            traefik.http.routers.todo.rule: Host(`todo.${DOMAIN}`)
+            traefik.http.routers.todo.entrypoints: websecure
+            traefik.http.routers.todo.tls: true
+            traefik.http.routers.todo.tls.certResolver: letsencrypt
+        ports:
+            - 3031:3000
+        environment:
+            <<: *env-vars
+            VIKUNJA_API_URL: https://todo.${DOMAIN}/api/v1
+        <<: *networking
+        restart: unless-stopped
 
-        freshrss:
-                image: lscr.io/linuxserver/freshrss
-                container_name: freshrss
-                restart: unless-stopped
-                environment: *env-vars
-                <<: *networking
-                volumes:
-                        - config-freshrss:/config
-                ports:
-                        - 85:80
-                labels:
-                        traefik.port: 85
-                        traefik.http.routers.freshrss.rule: Host(`rss.${DOMAIN}`)
-                        traefik.http.routers.freshrss.entrypoints: websecure
-                        traefik.http.routers.freshrss.tls: true
-                        traefik.http.routers.freshrss.tls.certResolver: letsencrypt
+    code-server:
+        image: lscr.io/linuxserver/openvscode-server:latest
+        container_name: code-server
+        restart: unless-stopped
+        <<: *networking
+        environment:
+            <<: *env-vars
+            CONNECTION_TOKEN: ${CODE_PASSWORD}
+            SUDO_PASSWORD: ${CODE_SUDO_PASSWORD}
+            PROXY_DOMAIN: dev.${DOMAIN}
+        volumes:
+            - config-code:/config
+            - sync:/sync
+        ports:
+            - 8443:8443
+        healthcheck:
+            test: [ "CMD-SHELL", "curl localhost:3000" ]
+            interval: 1m30s
+            timeout: 30s
+            retries: 5
+            start_period: 30s
+        labels:
+            traefik.port: 8443
+            traefik.http.routers.code.rule: Host(`dev.${DOMAIN}`)
+            traefik.http.routers.code.entrypoints: websecure
+            traefik.http.routers.code.tls: true
+            traefik.http.routers.code.tls.certResolver: letsencrypt
 
-        ###
-        #           ____                                            
-        #         ,'  , `.                                          
-        #      ,-+-,.' _ |               ,---,  ,--,                
-        #   ,-+-. ;   , ||             ,---.'|,--.'|                
-        #  ,--.'|'   |  ;|             |   | :|  |,                 
-        # |   |  ,', |  ':  ,---.      |   | |`--'_      ,--.--.    
-        # |   | /  | |  || /     \   ,--.__| |,' ,'|    /       \   
-        # '   | :  | :  |,/    /  | /   ,'   |'  | |   .--.  .-. |  
-        # ;   . |  ; |--'.    ' / |.   '  /  ||  | :    \__\/: . .  
-        # |   : |  | ,   '   ;   /|'   ; |:  |'  : |__  ," .--.; |  
-        # |   : '  |/    '   |  / ||   | '/  '|  | '.'|/  /  ,.  |  
-        # ;   | |`-'     |   :    ||   :    :|;  :    ;  :   .'   \ 
-        # |   ;/          \   \  /  \   \  /  |  ,   /|  ,     .-./ 
-        # '---'            `----'    `----'    ---`-'  `--`---'     
-        ###
+    onedev:
+        image: 1dev/server
+        container_name: git
+        restart: unless-stopped
+        volumes:
+            - /var/run/docker.sock:/var/run/docker.sock
+            - config-onedev:/opt/onedev
+        ports:
+            - 6621:6610
+            - 6611:6611
+        <<: *networking
+        environment: *env-vars
+        labels:
+            traefik.port: 6610
+            traefik.http.routers.git.rule: Host(`git.${DOMAIN}`)
+            traefik.http.routers.git.entrypoints: websecure
+            traefik.http.routers.git.tls: true
+            traefik.http.routers.git.tls.certResolver: letsencrypt
 
-        radarr:
-                image: lscr.io/linuxserver/radarr:latest
-                container_name: radarr
-                restart: unless-stopped
-                environment: *env-vars
-                volumes:
-                        - config-radarr:/config
-                        - media-movies:/movies
-                        - downloads:/downloads
-                ports:
-                        - 7878:7878
-                <<: *networking
-                healthcheck:
-                        test: [ "CMD-SHELL", "curl --fail localhost:7878" ]
-                        interval: 45s
-                        timeout: 30s
-                        retries: 3
-                labels:
-                        traefik.http.routers.radarr.rule: Host(`request.${DOMAIN}`) && PathPrefix(`/movies`)
-                        traefik.http.routers.radarr.entrypoints: websecure
-                        traefik.http.services.radarr.loadbalancer.server.port: 7878
-                        traefik.http.routers.radarr.tls: true
-                        traefik.http.routers.radarr.tls.certResolver: letsencrypt
+    sync:
+        container_name: sync
+        image: lscr.io/linuxserver/syncthing
+        restart: unless-stopped
+        environment: *env-vars
+        volumes:
+            - config-syncthing:/config
+            - sync:/config/Sync
+        ports:
+            - 8384:8384
+            - 22000:22000
+            - 21027:21027/udp
+        <<: *networking
+        healthcheck:
+            test: nc -z 127.0.0.1 8384 || exit 1
+            interval: 30s
+            timeout: 3s
+            retries: 3
+        labels:
+            traefik.http.routers.sync.rule: Host(`sync.${DOMAIN}`)
+            traefik.http.routers.sync.entrypoints: websecure
+            traefik.http.services.sync.loadbalancer.server.port: 8384
+            traefik.http.routers.sync.tls: true
+            traefik.http.routers.sync.tls.certResolver: letsencrypt
 
-        sonarr:
-                image: lscr.io/linuxserver/sonarr:latest
-                container_name: sonarr
-                restart: unless-stopped
-                environment: *env-vars
-                volumes:
-                        - config-sonarr:/config
-                        - media-shows:/shows
-                        - downloads:/downloads
-                <<: *networking
-                healthcheck:
-                        test: [ "CMD-SHELL", "curl --fail localhost:8989" ]
-                        interval: 45s
-                        timeout: 30s
-                        retries: 3
-                labels:
-                        traefik.http.routers.sonarr.rule: Host(`request.${DOMAIN}`) && PathPrefix(`/shows`)
-                        traefik.http.routers.sonarr.entrypoints: websecure
-                        traefik.http.services.sonarr.loadbalancer.server.port: 8989
-                        traefik.http.routers.sonarr.tls: true
-                        traefik.http.routers.sonarr.tls.certResolver: letsencrypt
+    vaultwarden:
+        image: vaultwarden/server
+        container_name: vaultwarden
+        restart: unless-stopped
+        <<: *networking
+        volumes:
+            - config-vaultwarden:/data
+        ports:
+            - 8800:8800
+            - 3012:3012
+        environment:
+            <<: *env-vars
+            DOMAIN: "https://vault.${DOMAIN}"
+            ADMIN_TOKEN: ${VAULTWARDEN_TOKEN}
+            WEBSOCKET_ENABLED: true
+            ROCKET_PORT: 8800
+        labels:
+            traefik.http.routers.vaultwarden-ui.rule: Host(`vault.${DOMAIN}`)
+            traefik.http.services.vaultwarden-ui.loadbalancer.server.port: 8800
+            traefik.http.routers.vaultwarden-ui.entrypoints: websecure
+            traefik.http.routers.vaultwarden-ui.tls: true
+            traefik.http.routers.vaultwarden-ui.tls.certResolver: letsencrypt
+            traefik.http.routers.vaultwarden-ui.service: vaultwarden-ui
+            traefik.http.routers.vaultwarden-websocket.rule: Host(`vault.${DOMAIN}`) && Path(`/notifications/hub`)
+            traefik.http.routers.vaultwarden-websocket.entrypoints: websecure
+            traefik.http.routers.vaultwarden-websocket.tls: true
+            traefik.http.routers.vaultwarden-websocket.tls.certResolver: letsencrypt
+            traefik.http.routers.vaultwarden-websocket.service: vaultwarden-websocket
+            traefik.http.services.vaultwarden-websocket.loadbalancer.server.port: 3012
 
-        lidarr:
-                image: lscr.io/linuxserver/lidarr:latest
-                container_name: lidarr
-                environment: *env-vars
-                restart: unless-stopped
-                volumes:
-                        - config-lidarr:/config
-                        - media-music:/music
-                        - downloads:/downloads
-                ports:
-                        - 6767:8686
-                <<: *networking
-                healthcheck:
-                        test: [ "CMD-SHELL", "curl --fail localhost:8686" ]
-                        interval: 45s
-                        timeout: 30s
-                        retries: 3
-                labels:
-                        traefik.port: 6767
-                        traefik.http.routers.lidarr.rule: Host(`request.${DOMAIN}`) && PathPrefix(`/music`)
-                        traefik.http.routers.lidarr.entrypoints: websecure
-                        traefik.http.routers.lidarr.tls: true
-                        traefik.http.routers.lidarr.tls.certResolver: letsencrypt
+    freshrss:
+        image: lscr.io/linuxserver/freshrss
+        container_name: freshrss
+        restart: unless-stopped
+        environment: *env-vars
+        <<: *networking
+        volumes:
+            - config-freshrss:/config
+        ports:
+            - 85:80
+        labels:
+            traefik.port: 85
+            traefik.http.routers.freshrss.rule: Host(`rss.${DOMAIN}`)
+            traefik.http.routers.freshrss.entrypoints: websecure
+            traefik.http.routers.freshrss.tls: true
+            traefik.http.routers.freshrss.tls.certResolver: letsencrypt
 
-        readarr:
-                image: lscr.io/linuxserver/readarr:develop
-                container_name: readarr
-                environment: *env-vars
-                restart: unless-stopped
-                volumes:
-                        - config-readarr:/config
-                        - media-books:/books
-                        - downloads:/downloads
-                ports:
-                        - 5656:8787
-                <<: *networking
-                healthcheck:
-                        test: [ "CMD-SHELL", "curl --fail localhost:8787" ]
-                        interval: 45s
-                        timeout: 30s
-                        retries: 3
-                labels:
-                        traefik.port: 5656
-                        traefik.http.routers.readarr.rule: Host(`request.${DOMAIN}`) && PathPrefix(`/books`)
-                        traefik.http.routers.readarr.entrypoints: websecure
-                        traefik.http.routers.readarr.tls: true
-                        traefik.http.routers.readarr.tls.certResolver: letsencrypt
+    ###
+    # __  __          _ _       
+    # |  \/  |        | (_)      
+    # | \  / | ___  __| |_  __ _ 
+    # | |\/| |/ _ \/ _` | |/ _` |
+    # | |  | |  __/ (_| | | (_| |
+    # |_|  |_|\___|\__,_|_|\__,_|           
+    ###
 
-        ytdl_material:
-                image: tzahi12345/youtubedl-material:latest
-                container_name: YoutubeDL
-                environment:
-                        ALLOW_CONFIG_MUTATIONS: 'true'
-                        ytdl_mongodb_connection_string: 'mongodb://mongo:27017'
-                        ytdl_use_local_db: 'false'
-                        write_ytdl_config: 'true'
-                        ytdl_url: 'https://request.${DOMAIN}/youtube/'
-                restart: unless-stopped
-                depends_on:
-                        - mongo
-                volumes:
-                        - config-youtubedl-appdata:/app/appdata
-                        - config-youtubedl-subscriptions:/app/subscriptions
-                        - config-youtubedl-users:/app/users
-                        - media-music:/app/audio
-                        - media-youtube:/app/video
-                ports:
-                        - 8998:17442
-                networks:
-                        - internal
-                        - web
-                        - private_network
-                <<: *dns
-                healthcheck:
-                        test: [ "CMD-SHELL", "curl --fail localhost:17442" ]
-                        interval: 45s
-                        timeout: 30s
-                        retries: 3
-                labels:
-                        traefik.port: 8998
-                        traefik.http.routers.youtube.rule: Host(`youtube.${DOMAIN}`)
-                        traefik.http.routers.youtube.entrypoints: websecure
-                        traefik.http.routers.youtube.tls: true
-                        traefik.http.routers.youtube.tls.certResolver: letsencrypt
+    radarr:
+        image: lscr.io/linuxserver/radarr:latest
+        container_name: radarr
+        restart: unless-stopped
+        environment: *env-vars
+        volumes:
+            - config-radarr:/config
+            - media-movies:/movies
+            - downloads:/downloads
+        ports:
+            - 7878:7878
+        <<: *networking
+        healthcheck:
+            test: [ "CMD-SHELL", "curl --fail localhost:7878" ]
+            interval: 45s
+            timeout: 30s
+            retries: 3
+        labels:
+            traefik.http.routers.radarr.rule: Host(`request.${DOMAIN}`) && PathPrefix(`/movies`)
+            traefik.http.routers.radarr.entrypoints: websecure
+            traefik.http.services.radarr.loadbalancer.server.port: 7878
+            traefik.http.routers.radarr.tls: true
+            traefik.http.routers.radarr.tls.certResolver: letsencrypt
 
-        prowlarr:
-                image: lscr.io/linuxserver/prowlarr:develop
-                container_name: prowlarr
-                restart: unless-stopped
-                environment: *env-vars
-                <<: *networking
-                volumes:
-                        - config-prowlarr:/config
-                ports:
-                        - 9696:9696
-                healthcheck:
-                        test: [ "CMD-SHELL", "curl --fail localhost:9696" ]
-                        interval: 45s
-                        timeout: 30s
-                        retries: 3
-                labels:
-                        traefik.http.routers.prowlarr.rule: Host(`request.${DOMAIN}`) && PathPrefix(`/indexers`)
-                        traefik.http.routers.prowlarr.entrypoints: websecure
-                        traefik.http.services.prowlarr.loadbalancer.server.port: 9696
-                        traefik.http.routers.prowlarr.tls: true
-                        traefik.http.routers.prowlarr.tls.certResolver: letsencrypt
+    sonarr:
+        image: lscr.io/linuxserver/sonarr:latest
+        container_name: sonarr
+        restart: unless-stopped
+        environment: *env-vars
+        volumes:
+            - config-sonarr:/config
+            - media-shows:/shows
+            - downloads:/downloads
+        <<: *networking
+        healthcheck:
+            test: [ "CMD-SHELL", "curl --fail localhost:8989" ]
+            interval: 45s
+            timeout: 30s
+            retries: 3
+        labels:
+            traefik.http.routers.sonarr.rule: Host(`request.${DOMAIN}`) && PathPrefix(`/shows`)
+            traefik.http.routers.sonarr.entrypoints: websecure
+            traefik.http.services.sonarr.loadbalancer.server.port: 8989
+            traefik.http.routers.sonarr.tls: true
+            traefik.http.routers.sonarr.tls.certResolver: letsencrypt
 
-        qbittorrent:
-                image: lscr.io/linuxserver/qbittorrent:latest
-                container_name: qbittorrent
-                restart: unless-stopped
-                environment:
-                        <<: *env-vars
-                        WEBUI_PORT: 8980
-                volumes:
-                        - config-qbittorrent:/config
-                        - downloads:/downloads
-                ports:
-                        - 8980:8980
-                        - 6881:6881
-                        - 6881:6881/udp
-                <<: *networking
-                healthcheck:
-                        test: [ "CMD-SHELL", "curl --fail localhost:8980" ]
-                        interval: 1m30s
-                        timeout: 30s
-                        retries: 5
-                        start_period: 30s
-                labels:
-                        traefik.http.routers.qbittorrent.rule: Host(`downloads.${DOMAIN}`)
-                        traefik.http.routers.qbittorrent.entrypoints: websecure
-                        traefik.http.services.qbittorrent.loadbalancer.server.port: 8980
-                        traefik.http.services.qbittorrent.loadbalancer.passhostheader: false
-                        traefik.http.routers.qbittorrent.tls: true
-                        traefik.http.routers.qbittorrent.tls.certResolver: letsencrypt
-                        traefik.http.middlewares.qbittorrent-headers.headers.customrequestheaders.X-Frame-Options: SAMEORIGIN
-                        traefik.http.middlewares.qbittorrent-headers.headers.customrequestheaders.Referer: ""
-                        traefik.http.middlewares.qbittorrent-headers.headers.customrequestheaders.Origin: ""
-                        traefik.http.routers.qbittorrent.middlewares: qbittorrent-headers
+    lidarr:
+        image: lscr.io/linuxserver/lidarr:latest
+        container_name: lidarr
+        environment: *env-vars
+        restart: unless-stopped
+        volumes:
+            - config-lidarr:/config
+            - media-music:/music
+            - downloads:/downloads
+        ports:
+            - 6767:8686
+        <<: *networking
+        healthcheck:
+            test: [ "CMD-SHELL", "curl --fail localhost:8686" ]
+            interval: 45s
+            timeout: 30s
+            retries: 3
+        labels:
+            traefik.port: 6767
+            traefik.http.routers.lidarr.rule: Host(`request.${DOMAIN}`) && PathPrefix(`/music`)
+            traefik.http.routers.lidarr.entrypoints: websecure
+            traefik.http.routers.lidarr.tls: true
+            traefik.http.routers.lidarr.tls.certResolver: letsencrypt
 
-        jellyseerr:
-                image: fallenbagel/jellyseerr
-                container_name: jellyseerr
-                restart: unless-stopped
-                environment: *env-vars
-                <<: *networking
-                ports:
-                        - 5055:5055
-                volumes:
-                        - config-jellyseerr:/app/config
-                labels:
-                        traefik.http.routers.jellyseerr.rule: Host(`request.${DOMAIN}`)
-                        traefik.http.routers.jellyseerr.entrypoints: websecure
-                        traefik.http.services.jellyseerr.loadbalancer.server.port: 5055
-                        traefik.http.routers.jellyseerr.tls: true
-                        traefik.http.routers.jellyseerr.tls.certResolver: letsencrypt
+    readarr:
+        image: lscr.io/linuxserver/readarr:develop
+        container_name: readarr
+        environment: *env-vars
+        restart: unless-stopped
+        volumes:
+            - config-readarr:/config
+            - media-books:/books
+            - downloads:/downloads
+        ports:
+            - 5656:8787
+        <<: *networking
+        healthcheck:
+            test: [ "CMD-SHELL", "curl --fail localhost:8787" ]
+            interval: 45s
+            timeout: 30s
+            retries: 3
+        labels:
+            traefik.port: 5656
+            traefik.http.routers.readarr.rule: Host(`request.${DOMAIN}`) && PathPrefix(`/books`)
+            traefik.http.routers.readarr.entrypoints: websecure
+            traefik.http.routers.readarr.tls: true
+            traefik.http.routers.readarr.tls.certResolver: letsencrypt
 
-        mediaelch:
-                image: masonxx/mediaelch
-                container_name: mediaelch
-                restart: unless-stopped
-                environment: *env-vars
-                <<: *networking
-                volumes:
-                        - config-mediaelch:/config/xdg/config/kvibes
-                        - media-movies:/movies
-                        - media-music:/music
-                        - media-shows:/shows
-                ports:
-                        - 5800:5800
-                        - 5900:5900
-                labels:
-                        traefik.http.routers.mediaelch.rule: Host(`metadata.${DOMAIN}`)
-                        traefik.http.routers.mediaelch.entrypoints: websecure
-                        traefik.http.services.mediaelch.loadbalancer.server.port: 5800
-                        traefik.http.routers.mediaelch.tls: true
-                        traefik.http.routers.mediaelch.tls.certResolver: letsencrypt
+    ytdl_material:
+        image: tzahi12345/youtubedl-material:latest
+        container_name: YoutubeDL
+        environment:
+            ALLOW_CONFIG_MUTATIONS: 'true'
+            ytdl_mongodb_connection_string: 'mongodb://mongo:27017'
+            ytdl_use_local_db: 'false'
+            write_ytdl_config: 'true'
+            ytdl_url: 'https://request.${DOMAIN}/youtube/'
+        restart: unless-stopped
+        depends_on:
+            - mongo
+        volumes:
+            - config-youtubedl-appdata:/app/appdata
+            - config-youtubedl-subscriptions:/app/subscriptions
+            - config-youtubedl-users:/app/users
+            - media-music:/app/audio
+            - media-youtube:/app/video
+        ports:
+            - 8998:17442
+        networks:
+            - internal
+            - web
+            - private_network
+        <<: *dns
+        healthcheck:
+            test: [ "CMD-SHELL", "curl --fail localhost:17442" ]
+            interval: 45s
+            timeout: 30s
+            retries: 3
+        labels:
+            traefik.port: 8998
+            traefik.http.routers.youtube.rule: Host(`youtube.${DOMAIN}`)
+            traefik.http.routers.youtube.entrypoints: websecure
+            traefik.http.routers.youtube.tls: true
+            traefik.http.routers.youtube.tls.certResolver: letsencrypt
 
-                                #tdarr:
-                                #        container_name: tdarr
-                                #        image: ghcr.io/haveagitgat/tdarr:latest
-                                #        restart: unless-stopped
-                                #        <<: *networking
-                                #        mem_limit: 2G
-                                #        ports:
-                                #                - 8265:8265
-                                #                - 8266:8266
-                                #                - 8267:8267
-                                #                - 8268:8268
-                                #        environment:
-                                #                <<: *env-vars
-                                #                UMASK_SET: 2
-                                #                serverIP: 0.0.0.0
-                                #                serverPort: 8266
-                                #                webUIPort: 8265
-                                #                internalNode: true
-                                #                nodeID: MyInternalNode
-                                #        volumes:
-                                #                - config-tdarr:/app/configs
-                                #                - config-tdarr-server:/app/server
-                                #                - config-tdarr-logs:/app/logs
-                                #                - media:/media
-                                #                - /tmp/transcode:/temp
-                                #        devices:
-                                #                - /dev/dri:/dev/dri
-                                #        labels:
-                                #                traefik.http.routers.tdarr.rule: Host(`transcode.${DOMAIN}`)
-                                #                traefik.http.routers.tdarr.entrypoints: websecure
-                                #                traefik.http.services.tdarr.loadbalancer.server.port: 8265
-                                #                traefik.http.routers.tdarr.tls: true
+    prowlarr:
+        image: lscr.io/linuxserver/prowlarr:develop
+        container_name: prowlarr
+        restart: unless-stopped
+        environment: *env-vars
+        <<: *networking
+        volumes:
+            - config-prowlarr:/config
+        ports:
+            - 9696:9696
+        healthcheck:
+            test: [ "CMD-SHELL", "curl --fail localhost:9696" ]
+            interval: 45s
+            timeout: 30s
+            retries: 3
+        labels:
+            traefik.http.routers.prowlarr.rule: Host(`request.${DOMAIN}`) && PathPrefix(`/indexers`)
+            traefik.http.routers.prowlarr.entrypoints: websecure
+            traefik.http.services.prowlarr.loadbalancer.server.port: 9696
+            traefik.http.routers.prowlarr.tls: true
+            traefik.http.routers.prowlarr.tls.certResolver: letsencrypt
 
-        watch:
-                container_name: watch
-                image: lscr.io/linuxserver/jellyfin
-                restart: unless-stopped
-                environment: *env-vars
-                volumes:
-                        - config-jellyfin:/config
-                        - config-jellyfin-cache:/cache
-                        - media-movies:/Movies
-                        - media-shows:/Television Shows
-                        - media-music:/Music
-                        - media-youtube:/Youtube
-                devices:
-                        - /dev/dri:/dev/dri
-                ports:
-                        - 8920:8920
-                <<: *networking
-                healthcheck:
-                        test: [ "CMD-SHELL", "curl --fail localhost:8096" ]
-                        interval: 1m30s
-                        timeout: 30s
-                        retries: 5
-                        start_period: 30s
-                labels:
-                        traefik.port: 8920
-                        traefik.http.routers.watch.rule: Host(`watch.${DOMAIN}`)
-                        traefik.http.routers.watch.entrypoints: websecure
-                        traefik.http.routers.watch.tls: true
-                        traefik.http.routers.watch.tls.certResolver: letsencrypt
+    qbittorrent:
+        image: lscr.io/linuxserver/qbittorrent:latest
+        container_name: qbittorrent
+        restart: unless-stopped
+        environment:
+            <<: *env-vars
+            WEBUI_PORT: 8980
+        volumes:
+            - config-qbittorrent:/config
+            - downloads:/downloads
+        ports:
+            - 8980:8980
+            - 6881:6881
+            - 6881:6881/udp
+        <<: *networking
+        healthcheck:
+            test: [ "CMD-SHELL", "curl --fail localhost:8980" ]
+            interval: 1m30s
+            timeout: 30s
+            retries: 5
+            start_period: 30s
+        labels:
+            traefik.http.routers.qbittorrent.rule: Host(`downloads.${DOMAIN}`)
+            traefik.http.routers.qbittorrent.entrypoints: websecure
+            traefik.http.services.qbittorrent.loadbalancer.server.port: 8980
+            traefik.http.services.qbittorrent.loadbalancer.passhostheader: false
+            traefik.http.routers.qbittorrent.tls: true
+            traefik.http.routers.qbittorrent.tls.certResolver: letsencrypt
+            traefik.http.middlewares.qbittorrent-headers.headers.customrequestheaders.X-Frame-Options: SAMEORIGIN
+            traefik.http.middlewares.qbittorrent-headers.headers.customrequestheaders.Referer: ""
+            traefik.http.middlewares.qbittorrent-headers.headers.customrequestheaders.Origin: ""
+            traefik.http.routers.qbittorrent.middlewares: qbittorrent-headers
 
-        ###
-        #    ,---,.                           ,-.            
-        # ,'  .'  \                      ,--/ /|            
-        # ,---.' .' |   ,---.     ,---.  ,--. :/ |            
-        # |   |  |: |  '   ,'\   '   ,'\ :  : ' /  .--.--.    
-        # :   :  :  / /   /   | /   /   ||  '  /  /  /    '   
-        # :   |    ; .   ; ,. :.   ; ,. :'  |  : |  :  /`./   
-        # |   :     \'   | |: :'   | |: :|  |   \|  :  ;_     
-        # |   |   . |'   | .; :'   | .; :'  : |. \\  \    `.  
-        # '   :  '; ||   :    ||   :    ||  | ' \ \`----.   \ 
-        # |   |  | ;  \   \  /  \   \  / '  : |--'/  /`--'  / 
-        # |   :   /    `----'    `----'  ;  |,'  '--'.     /  
-        # |   | ,'                       '--'      `--'---'   
-        # `----'                                           
-        ###
+    jellyseerr:
+        image: fallenbagel/jellyseerr
+        container_name: jellyseerr
+        restart: unless-stopped
+        environment: *env-vars
+        <<: *networking
+        ports:
+            - 5055:5055
+        volumes:
+            - config-jellyseerr:/app/config
+        labels:
+            traefik.http.routers.jellyseerr.rule: Host(`request.${DOMAIN}`)
+            traefik.http.routers.jellyseerr.entrypoints: websecure
+            traefik.http.services.jellyseerr.loadbalancer.server.port: 5055
+            traefik.http.routers.jellyseerr.tls: true
+            traefik.http.routers.jellyseerr.tls.certResolver: letsencrypt
 
-        calibre:
-                container_name: calibre
-                image: lscr.io/linuxserver/calibre
-                restart: unless-stopped
-                environment: *env-vars
-                volumes:
-                        - media-books:/config
-                ports:
-                        - 8082:8080
-                        - 8083:8081
-                <<: *networking
-                healthcheck:
-                        test: [ "CMD-SHELL", "curl --fail localhost:8080" ]
-                        interval: 1m30s
-                        timeout: 30s
-                        retries: 5
-                        start_period: 30s
-                labels:
-                        traefik.port: 8082
-                        traefik.http.routers.calibre.rule: Host(`calibre.${DOMAIN}`)
-                        traefik.http.routers.calibre.entrypoints: websecure
-                        traefik.http.routers.calibre.tls: true
-                        traefik.http.routers.calibre.tls.certResolver: letsencrypt
+    mediaelch:
+        image: masonxx/mediaelch
+        container_name: mediaelch
+        restart: unless-stopped
+        environment: *env-vars
+        <<: *networking
+        volumes:
+            - config-mediaelch:/config/xdg/config/kvibes
+            - media-movies:/movies
+            - media-music:/music
+            - media-shows:/shows
+        ports:
+            - 5800:5800
+            - 5900:5900
+        labels:
+            traefik.http.routers.mediaelch.rule: Host(`metadata.${DOMAIN}`)
+            traefik.http.routers.mediaelch.entrypoints: websecure
+            traefik.http.services.mediaelch.loadbalancer.server.port: 5800
+            traefik.http.routers.mediaelch.tls: true
+            traefik.http.routers.mediaelch.tls.certResolver: letsencrypt
 
-        read:
-                container_name: read
-                image: lscr.io/linuxserver/calibre-web
-                restart: unless-stopped
-                environment:
-                        <<: *env-vars
-                        DOCKER_MODS: linuxserver/calibre-web:calibre
-                volumes:
-                        - config-calibre-web:/config
-                        - media-books:/books
-                ports:
-                        - 8084:8083
-                <<: *networking
-                healthcheck:
-                        test: [ "CMD-SHELL", "curl --fail localhost:8083" ]
-                        interval: 1m30s
-                        timeout: 30s
-                        retries: 5
-                        start_period: 30s
-                labels:
-                        traefik.port: 8084
-                        traefik.http.routers.read.rule: Host(`read.${DOMAIN}`)
-                        traefik.http.routers.read.entrypoints: websecure
-                        traefik.http.routers.read.tls: true
-                        traefik.http.routers.read.tls.certResolver: letsencrypt
+    watch:
+        container_name: watch
+        image: lscr.io/linuxserver/jellyfin
+        restart: unless-stopped
+        environment:
+            <<: *env-vars
+            DOCKER_MODS: linuxserver/mods:jellyfin-amd
+            JELLYFIN_PublishedServerUrl: 192.168.1.123
+        volumes:
+            - config-jellyfin:/config
+            - config-jellyfin-cache:/cache
+            - media-movies:/Movies
+            - media-shows:/Television Shows
+            - media-music:/Music
+            - media-youtube:/Youtube
+        devices:
+            - /dev/dri:/dev/dri
+        ports:
+            - 8096:8096
+            - 8920:8920
+            - 7359:7359/udp
+            - 1900:1900/udp
+        <<: *networking
+        healthcheck:
+            test: [ "CMD-SHELL", "curl --fail localhost:8096" ]
+            interval: 1m30s
+            timeout: 30s
+            retries: 5
+            start_period: 30s
+        labels:
+            traefik.http.services.watch.loadBalancer.server.port: 8096
+            traefik.http.middlewares.csp.headers.contentSecurityPolicy: "default-src https: data: blob:; style-src 'self' 'unsafe-inline' https://ctalvio.github.io https://fonts.googleapis.com/css2 https://cdn.jsdelivr.net https://raw.githubusercontent.com/danieladov; script-src 'self' 'unsafe-inline' https://www.gstatic.com/cv/js/sender/v1/cast_sender.js https://www.youtube.com/iframe_api https://s.ytimg.com worker-src 'self' blob:; connect-src 'self' https://raw.githubusercontent.com/danieladov; object-src 'none'; frame-ancestors 'self'"
+            traefik.http.routers.watch.rule: Host(`watch.${DOMAIN}`)
+            traefik.http.routers.watch.entrypoints: websecure
+            traefik.http.routers.watch.middlewares: csp
+            traefik.http.routers.watch.tls: true
+            traefik.http.routers.watch.tls.certResolver: letsencrypt
 
-        ###
-        #     ,---,                   ___                                                                         
-        #   .'  .' `\               ,--.'|_               ,---,                                                   
-        # ,---.'     \              |  | :,'            ,---.'|                                                   
-        # |   |  .`\  |             :  : ' :            |   | :                  .--.--.               .--.--.    
-        # :   : |  '  |  ,--.--.  .;__,'  /    ,--.--.  :   : :      ,--.--.    /  /    '     ,---.   /  /    '   
-        # |   ' '  ;  : /       \ |  |   |    /       \ :     |,-.  /       \  |  :  /`./    /     \ |  :  /`./   
-        # '   | ;  .  |.--.  .-. |:__,'| :   .--.  .-. ||   : '  | .--.  .-. | |  :  ;_     /    /  ||  :  ;_     
-        # |   | :  |  ' \__\/: . .  '  : |__  \__\/: . .|   |  / :  \__\/: . .  \  \    `. .    ' / | \  \    `.  
-        # '   : | /  ;  ," .--.; |  |  | '.'| ," .--.; |'   : |: |  ," .--.; |   `----.   \'   ;   /|  `----.   \ 
-        # |   | '` ,/  /  /  ,.  |  ;  :    ;/  /  ,.  ||   | '/ : /  /  ,.  |  /  /`--'  /'   |  / | /  /`--'  / 
-        # ;   :  .'   ;  :   .'   \ |  ,   /;  :   .'   \   :    |;  :   .'   \'--'.     / |   :    |'--'.     /  
-        # |   ,.'     |  ,     .-./  ---`-' |  ,     .-./    \  / |  ,     .-./  `--'---'   \   \  /   `--'---'   
-        # '---'        `--`---'              `--`---'   `-'----'   `--`---'                  `----'               
-        ###
+    ###
+    #   ____              _        
+    #  |  _ \            | |       
+    #  | |_) | ___   ___ | | _____ 
+    #  |  _ < / _ \ / _ \| |/ / __|
+    #  | |_) | (_) | (_) |   <\__ \
+    #  |____/ \___/ \___/|_|\_\___/
+    ###
 
-        mariadb:
-                image: lscr.io/linuxserver/mariadb
-                container_name: mariadb
-                restart: unless-stopped
-                volumes:
-                        - config-mariadb:/config
-                ports:
-                        - 3306:3306
-                environment:
-                        <<: *env-vars
-                        MYSQL_DATABASE: ${DATABASE}
-                        MYSQL_USER: ${DATABASE_USERNAME}
-                        MYSQL_PASSWORD: ${DATABASE_PASSWORD}
-                        MYSQL_ROOT_PASSWORD: ${DATABASE_PASSWORD}
-                networks:
-                        - internal
-                healthcheck:
-                        test: "/usr/bin/mysql --user=${DATABASE_USERNAME} --password=${DATABASE_PASSWORD} --execute \"SHOW DATABASES;\""
-                        interval: 3s
-                        timeout: 1s
-                        retries: 5
-                labels:
-                        traefik.enable: false
+    calibre:
+        container_name: calibre
+        image: lscr.io/linuxserver/calibre
+        restart: unless-stopped
+        environment: *env-vars
+        volumes:
+            - media-books:/config
+        ports:
+            - 8082:8080
+            - 8083:8081
+        <<: *networking
+        healthcheck:
+            test: [ "CMD-SHELL", "curl --fail localhost:8080" ]
+            interval: 1m30s
+            timeout: 30s
+            retries: 5
+            start_period: 30s
+        labels:
+            traefik.port: 8082
+            traefik.http.routers.calibre.rule: Host(`calibre.${DOMAIN}`)
+            traefik.http.routers.calibre.entrypoints: websecure
+            traefik.http.routers.calibre.tls: true
+            traefik.http.routers.calibre.tls.certResolver: letsencrypt
 
-        mongo:
-                image: mongo
-                container_name: mongo
-                ports:
-                        - 27017:27017
-                logging:
-                        driver: none
-                networks:
-                        - internal
-                restart: unless-stopped
-                volumes:
-                        - config-mongo:/data/db
-                healthcheck:
-                        test: echo 'db.runCommand("ping").ok' | mongo mongo:27017/test --quiet
-                        interval: 10s
-                        timeout: 10s
-                        retries: 5
-                        start_period: 40s
-                labels:
-                        traefik.enable: false
+    read:
+        container_name: read
+        image: lscr.io/linuxserver/calibre-web
+        restart: unless-stopped
+        environment:
+            <<: *env-vars
+            DOCKER_MODS: linuxserver/calibre-web:calibre
+        volumes:
+            - config-calibre-web:/config
+            - media-books:/books
+        ports:
+            - 8084:8083
+        <<: *networking
+        healthcheck:
+            test: [ "CMD-SHELL", "curl --fail localhost:8083" ]
+            interval: 1m30s
+            timeout: 30s
+            retries: 5
+            start_period: 30s
+        labels:
+            traefik.port: 8084
+            traefik.http.routers.read.rule: Host(`read.${DOMAIN}`)
+            traefik.http.routers.read.entrypoints: websecure
+            traefik.http.routers.read.tls: true
+            traefik.http.routers.read.tls.certResolver: letsencrypt
 
+    ###
+    #   _____        _        _                         
+    #  |  __ \      | |      | |                        
+    #  | |  | | __ _| |_ __ _| |__   __ _ ___  ___  ___ 
+    #  | |  | |/ _` | __/ _` | '_ \ / _` / __|/ _ \/ __|
+    #  | |__| | (_| | || (_| | |_) | (_| \__ \  __/\__ \
+    #  |_____/ \__,_|\__\__,_|_.__/ \__,_|___/\___||___/                                              
+    ###
+
+    mariadb:
+        image: lscr.io/linuxserver/mariadb
+        container_name: mariadb
+        restart: unless-stopped
+        volumes:
+            - config-mariadb:/config
+        ports:
+            - 3306:3306
+        environment:
+            <<: *env-vars
+            MYSQL_DATABASE: ${DATABASE}
+            MYSQL_USER: ${DATABASE_USERNAME}
+            MYSQL_PASSWORD: ${DATABASE_PASSWORD}
+            MYSQL_ROOT_PASSWORD: ${DATABASE_PASSWORD}
+        networks:
+            - internal
+        healthcheck:
+            test: "/usr/bin/mysql --user=${DATABASE_USERNAME} --password=${DATABASE_PASSWORD} --execute \"SHOW DATABASES;\""
+            interval: 3s
+            timeout: 1s
+            retries: 5
+        labels:
+            traefik.enable: false
+
+    todo-db:
+        image: lscr.io/linuxserver/mariadb
+        container_name: todo-db
+        restart: unless-stopped
+        volumes:
+            - config-vikunja-db:/config
+        ports:
+            - 3307:3306
+        environment:
+            <<: *env-vars
+            MYSQL_DATABASE: ${TODO_DATABASE}
+            MYSQL_USER: ${DATABASE_USERNAME}
+            MYSQL_PASSWORD: ${DATABASE_PASSWORD}
+            MYSQL_ROOT_PASSWORD: ${DATABASE_PASSWORD}
+        networks:
+            - internal
+        healthcheck:
+            test: "/usr/bin/mysql --user=${DATABASE_USERNAME} --password=${DATABASE_PASSWORD} --execute \"SHOW DATABASES;\""
+            interval: 3s
+            timeout: 1s
+            retries: 5
+        labels:
+            traefik.enable: false
+
+    mongo:
+        image: mongo
+        container_name: mongo
+        ports:
+            - 27017:27017
+        logging:
+            driver: none
+        networks:
+            - internal
+        restart: unless-stopped
+        volumes:
+            - config-mongo:/data/db
+        healthcheck:
+            test: echo 'db.runCommand("ping").ok' | mongo mongo:27017/test --quiet
+            interval: 10s
+            timeout: 10s
+            retries: 5
+            start_period: 40s
+        labels:
+            traefik.enable: false
