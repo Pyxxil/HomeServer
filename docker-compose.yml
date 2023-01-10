@@ -24,6 +24,12 @@ x-common-networking: &networking
   <<: *dns
   <<: *networks
 
+x-common-logging: &logging
+  logging:
+    driver: loki
+    options:
+      loki-url: http://127.0.0.1:3100/loki/api/v1/push
+
 networks:
   web:
     external: false
@@ -48,10 +54,6 @@ volumes:
     driver_opts:
       <<: *driver-opts
       device: ${CONFIG_DIR}/auth/db
-  config-bookstack:
-    driver_opts:
-      <<: *driver-opts
-      device: ${CONFIG_DIR}/bookstack
   config-calibre-web:
     driver_opts:
       <<: *driver-opts
@@ -96,14 +98,14 @@ volumes:
     driver_opts:
       <<: *driver-opts
       device: ${CONFIG_DIR}/lidarr
-  config-mariadb:
+  config-loki:
     driver_opts:
       <<: *driver-opts
-      device: ${CONFIG_DIR}/mariadb
-  config-mediaelch:
+      device: ${CONFIG_DIR}/loki/config
+  config-loki-data:
     driver_opts:
       <<: *driver-opts
-      device: ${CONFIG_DIR}/mediaelch
+      device: ${CONFIG_DIR}/loki/data
   config-mongo:
     driver_opts:
       <<: *driver-opts
@@ -120,10 +122,26 @@ volumes:
     driver_opts:
       <<: *driver-opts
       device: ${CONFIG_DIR}/outline/db
+  config-pocket:
+    driver_opts:
+      <<: *driver-opts
+      device: ${CONFIG_DIR}/pocket/images
+  config-pocket-db:
+    driver_opts:
+      <<: *driver-opts
+      device: ${CONFIG_DIR}/pocket/db
+  config-portainer:
+    driver_opts:
+      <<: *driver-opts
+      device: ${CONFIG_DIR}/portainer
   config-prometheus:
     driver_opts:
       <<: *driver-opts
       device: ${CONFIG_DIR}/prometheus
+  config-promtail:
+    driver_opts:
+      <<: *driver-opts
+      device: ${CONFIG_DIR}/promtail
   config-prowlarr:
     driver_opts:
       <<: *driver-opts
@@ -152,18 +170,6 @@ volumes:
     driver_opts:
       <<: *driver-opts
       device: ${CONFIG_DIR}/syncthing
-  config-tdarr:
-    driver_opts:
-      <<: *driver-opts
-      device: ${CONFIG_DIR}/tdarr/config
-  config-tdarr-logs:
-    driver_opts:
-      <<: *driver-opts
-      device: ${CONFIG_DIR}/tdarr/logs
-  config-tdarr-server:
-    driver_opts:
-      <<: *driver-opts
-      device: ${CONFIG_DIR}/tdarr/server
   config-traefik:
     driver_opts:
       <<: *driver-opts
@@ -204,10 +210,6 @@ volumes:
     driver_opts:
       <<: *driver-opts
       device: ${DATA_DIR}
-  media-archive:
-    driver_opts:
-      <<: *driver-opts
-      device: ${DATA_DIR}/Archive
   media-books:
     driver_opts:
       <<: *driver-opts
@@ -245,38 +247,38 @@ services:
 
   traefik:
     container_name: traefik
-    image: traefik:2.8
+    image: traefik
     restart: unless-stopped
     command:
-      - "--api=true"
-      - "--api.dashboard=true"
-      - "--certificatesresolvers.letsencrypt.acme.caserver=https://acme-v02.api.letsencrypt.org/directory"
-      - "--certificatesresolvers.letsencrypt.acme.dnschallenge.delaybeforecheck=0"
-      - "--certificatesresolvers.letsencrypt.acme.dnschallenge.provider=cloudflare"
-      - "--certificatesresolvers.letsencrypt.acme.dnschallenge.resolvers=1.1.1.1:53,8.8.8.8:53"
-      - "--certificatesresolvers.letsencrypt.acme.email=${ADMIN_EMAIL}"
-      - "--certificatesresolvers.letsencrypt.acme.storage=/config/acme.json"
-      - "--entrypoints.web.address=:80"
-      - "--entrypoints.web.forwardedHeaders.insecure=false"
-      - "--entrypoints.web.proxyProtocol.insecure=false"
-      - "--entryPoints.web.forwardedHeaders.trustedIPs=10.0.0.0/8,172.0.0.0/8,192.168.0.0/16,fc00::/7,100.0.0.0/8"
-      - "--entryPoints.web.proxyProtocol.trustedIPs=10.0.0.0/8,172.0.0.0/8,192.168.0.0/16,fc00::/7,100.0.0.0/8"
-      - "--experimental.http3=true"
-      - "--entrypoints.websecure.address=:443"
-      - "--entrypoints.websecure.http3"
-      - "--entrypoints.websecure.http.tls.certResolver=letsencrypt"
-      - "--entrypoints.websecure.http.tls.domains[0].main=${DOMAIN}"
-      - "--entrypoints.websecure.http.tls.domains[0].sans=*.${DOMAIN}"
-      - "--entryPoints.websecure.forwardedHeaders.trustedIPs=10.0.0.0/8,172.0.0.0/8,192.168.0.0/16,fc00::/7,100.0.0.0/8"
-      - "--entryPoints.websecure.proxyProtocol.trustedIPs=10.0.0.0/8,172.0.0.0/8,192.168.0.0/16,fc00::/7,100.0.0.0/8"
-      - "--entrypoints.websecure.forwardedHeaders.insecure=false"
-      - "--entrypoints.websecure.proxyProtocol.insecure=false"
-      - "--ping=true"
-      - "--metrics.prometheus=true"
-      - "--providers.docker=true"
-      - "--providers.docker.watch=true"
-      - "--providers.docker.exposedbydefault=true"
-      - "--providers.docker.network=web"
+      - --api=true
+      - --api.dashboard=true
+      - --certificatesresolvers.letsencrypt.acme.caserver=https://acme-v02.api.letsencrypt.org/directory
+      - --certificatesresolvers.letsencrypt.acme.dnschallenge.delaybeforecheck=0
+      - --certificatesresolvers.letsencrypt.acme.dnschallenge.provider=cloudflare
+      - --certificatesresolvers.letsencrypt.acme.dnschallenge.resolvers=1.1.1.1:53,8.8.8.8:53
+      - --certificatesresolvers.letsencrypt.acme.email=${ADMIN_EMAIL}
+      - --certificatesresolvers.letsencrypt.acme.storage=/config/acme.json
+      - --entrypoints.web.address=:80
+      - --entrypoints.web.forwardedHeaders.insecure=false
+      - --entrypoints.web.proxyProtocol.insecure=false
+      - --entryPoints.web.forwardedHeaders.trustedIPs=10.0.0.0/8,172.0.0.0/8,192.168.0.0/16,fc00::/7,100.0.0.0/8
+      - --entryPoints.web.proxyProtocol.trustedIPs=10.0.0.0/8,172.0.0.0/8,192.168.0.0/16,fc00::/7,100.0.0.0/8
+      - --experimental.http3=true
+      - --entrypoints.websecure.address=:443
+      - --entrypoints.websecure.http3
+      - --entrypoints.websecure.http.tls.certResolver=letsencrypt
+      - --entrypoints.websecure.http.tls.domains[0].main=${DOMAIN}
+      - --entrypoints.websecure.http.tls.domains[0].sans=*.${DOMAIN}
+      - --entryPoints.websecure.forwardedHeaders.trustedIPs=10.0.0.0/8,172.0.0.0/8,192.168.0.0/16,fc00::/7,100.0.0.0/8
+      - --entryPoints.websecure.proxyProtocol.trustedIPs=10.0.0.0/8,172.0.0.0/8,192.168.0.0/16,fc00::/7,100.0.0.0/8
+      - --entrypoints.websecure.forwardedHeaders.insecure=false
+      - --entrypoints.websecure.proxyProtocol.insecure=false
+      - --ping=true
+      - --metrics.prometheus=true
+      - --providers.docker=true
+      - --providers.docker.watch=true
+      - --providers.docker.exposedbydefault=true
+      - --providers.docker.network=web
     environment:
       <<: *env-vars
       CLOUDFLARE_DNS_API_TOKEN: ${CLOUDFLARE_DNS_API_TOKEN}
@@ -297,6 +299,7 @@ services:
           - auth.${DOMAIN}
       private_network:
     <<: *dns
+    <<: *logging
     healthcheck:
       test: ["CMD", "traefik", "healthcheck", "--ping"]
       interval: 30s
@@ -305,8 +308,7 @@ services:
     labels:
       traefik.http.routers.dashboard.rule: Host(`dash.${DOMAIN}`)
       traefik.http.routers.dashboard.service: api@internal
-      traefik.http.middlewares.dashboard-auth.basicauth.users: admin:$$apr1$$w2iKX3VV$$K7lu318dfpWODDanrGEFF1
-      traefik.http.routers.dashboard.middlewares: dashboard-auth
+      traefik.http.routers.dashboard.middlewares: authelia@docker
       traefik.http.routers.dashboard.tls: true
       traefik.http.routers.dashboard.tls.certResolver: letsencrypt
       traefik.http.routers.http-catchall.rule: hostregexp(`{host:.+}`)
@@ -315,12 +317,33 @@ services:
       traefik.http.middlewares.redirect-to-https.redirectscheme.scheme: https
       traefik.http.middlewares.redirect-to-https.redirectScheme.permanent: true
 
+  portainer:
+    image: portainer/portainer-ce
+    container_name: admin
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - config-portainer:/data
+    <<: *dns
+    networks:
+      - internal
+      - web
+      - private_network
+    restart: unless-stopped
+    environment: *env-vars
+    labels:
+      traefik.http.routers.admin.rule: Host(`admin.${DOMAIN}`)
+      traefik.http.services.admin.loadbalancer.server.port: 9000
+      traefik.http.routers.admin.entrypoints: websecure
+      traefik.http.routers.admin.tls: true
+      traefik.http.routers.admin.tls.certResolver: letsencrypt
+
   auth:
     image: authelia/authelia
     container_name: authelia
     volumes:
       - config-authelia:/config
     <<: *dns
+    <<: *logging
     networks:
       - internal
       - web
@@ -351,9 +374,12 @@ services:
     container_name: prometheus
     restart: unless-stopped
     <<: *networking
+    <<: *logging
     entrypoint: ["/bin/sh", "-c"]
     command:
-      - "rm -rf /prometheus/data/chunks_head; /bin/prometheus --config.file=/etc/prometheus/prometheus.yml --storage.tsdb.path=/prometheus"
+      - "rm -rf /prometheus/data/chunks_head; /bin/prometheus
+        --config.file=/etc/prometheus/prometheus.yml
+        --storage.tsdb.path=/prometheus"
     volumes:
       - config-prometheus:/etc/prometheus
     healthcheck:
@@ -375,7 +401,8 @@ services:
     container_name: grafana
     restart: unless-stopped
     <<: *networking
-    user: "104"
+    <<: *logging
+    user: ${PUID}
     environment:
       GF_SERVER_ROOT_URL: https://metrics.${DOMAIN}
     volumes:
@@ -395,11 +422,52 @@ services:
       traefik.http.routers.grafana.tls: true
       traefik.http.routers.grafana.tls.certResolver: letsencrypt
 
+  loki:
+    container_name: loki
+    image: grafana/loki
+    restart: unless-stopped
+    <<: *dns
+    <<: *logging
+    networks:
+      - internal
+      - web
+      - private_network
+    ports:
+      - 3100:3100
+    volumes:
+      - config-loki:/etc/loki
+      - config-loki-data:/loki
+    command: -config.file=/etc/loki/loki-config.yaml
+    labels:
+      traefik.http.routers.loki.rule: Host(`loki.${DOMAIN}`)
+      traefik.http.services.loki.loadBalancer.server.port: 3100
+      traefik.http.routers.loki.entrypoints: websecure
+      traefik.http.routers.loki.tls: true
+      traefik.http.routers.loki.tls.certResolver: letsencrypt
+
+  promtail:
+    container_name: promtail
+    image: grafana/promtail
+    restart: unless-stopped
+    volumes:
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - config-promtail:/etc/promtail
+    command: -config.file=/etc/promtail/promtail-config.yaml
+    <<: *dns
+    <<: *logging
+    networks:
+      - internal
+      - web
+      - private_network
+    labels:
+      traefik.enable: false
+
   adguard_exporter:
     image: ebrianne/adguard-exporter
     container_name: adguard-exporter
     restart: unless-stopped
     <<: *networking
+    <<: *logging
     depends_on:
       - adguard
     ports:
@@ -419,15 +487,15 @@ services:
   node_exporter:
     image: quay.io/prometheus/node-exporter
     container_name: node-exporter
-    command:
-      - "--path.rootfs=/host"
+    command: --path.rootfs=/host
     <<: *networking
+    <<: *logging
     pid: host
     restart: unless-stopped
     ports:
       - 9619:9100
     volumes:
-      - "/:/host:ro,rslave"
+      - /:/host:ro,rslave
     healthcheck:
       test: ["CMD-SHELL", "/bin/netstat -pant | /bin/grep ':9100'"]
       interval: 45s
@@ -456,14 +524,15 @@ services:
     volumes:
       - config-unbound:/opt/unbound/etc/unbound/
     environment: *env-vars
+    <<: *logging
     labels:
       traefik.enable: false
 
   dnscrypt:
-    image: zquestz/dnscrypt-server:latest
+    image: zquestz/dnscrypt-server
     container_name: dnscrypt
     restart: always
-    command: "init -N ${DOMAIN} -E '10.2.0.150:5443' -M 0.0.0.0:9100"
+    command: init -N ${DOMAIN} -E '10.2.0.150:5443' -M 0.0.0.0:9100
     networks:
       private_network:
         ipv4_address: 10.2.0.150
@@ -474,6 +543,7 @@ services:
     volumes:
       - config-dnscrypt:/opt/encrypted-dns/etc/keys
     environment: *env-vars
+    <<: *logging
     healthcheck:
       test: ["CMD-SHELL", "drill -p 553 one.one.one.one @127.0.0.1 || exit 1"]
       interval: 1m30s
@@ -496,6 +566,7 @@ services:
       - 127.0.0.1
       - 10.2.0.200
       - 10.2.0.150
+    <<: *logging
     networks:
       private_network:
         ipv4_address: 10.2.0.100
@@ -508,7 +579,7 @@ services:
       - 4443:443/tcp
       - 4443:443/udp
       - 8853:8853/udp
-      - 192.168.1.123:3000:3000/tcp
+      - ${IP}:3000:3000/tcp
     healthcheck:
       test: ["CMD-SHELL", "/bin/netstat -pant | /bin/grep :53"]
       interval: 45s
@@ -530,25 +601,6 @@ services:
   #   \_____|_|\___/ \__,_|\__,_|
   ###
 
-  archive:
-    image: ${DOCKER_IMAGE:-archivebox/archivebox:master}
-    container_name: archive
-    restart: unless-stopped
-    command: server --quick-init 0.0.0.0:8000
-    <<: *networking
-    environment:
-      <<: *env-vars
-      ALLOWED_HOSTS: "*"
-      MEDIA_MAX_SIZE: 750m
-    volumes:
-      - media-archive:/data
-    labels:
-      traefik.http.routers.archive.rule: Host(`archive.${DOMAIN}`)
-      traefik.http.services.archive.loadBalancer.server.port: 8000
-      traefik.http.routers.archive.entrypoints: websecure
-      traefik.http.routers.archive.tls: true
-      traefik.http.routers.archive.tls.certResolver: letsencrypt
-
   todo-api:
     image: vikunja/api
     container_name: todo-api
@@ -564,6 +616,7 @@ services:
     volumes:
       - config-vikunja:/app/vikunja/files
     <<: *dns
+    <<: *logging
     networks:
       - internal
       - web
@@ -571,8 +624,24 @@ services:
     depends_on:
       - todo-db
     restart: unless-stopped
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "--no-verbose",
+          "--tries=1",
+          "--spider",
+          "http://localhost:3456/api/v1/info",
+        ]
+      interval: 1m30s
+      timeout: 30s
+      retries: 5
+      start_period: 30s
     labels:
-      traefik.http.routers.todo-api.rule: Host(`todo.${DOMAIN}`) && PathPrefix(`/api/v1`, `/dav/`, `/.well-known/`)
+      traefik.http.routers.todo-api.rule:
+        Host(`todo.${DOMAIN}`) && PathPrefix(`/api/v1`, `/dav/`,
+        `/.well-known/`)
       traefik.http.routers.todo-api.entrypoints: websecure
       traefik.http.routers.todo-api.tls: true
       traefik.http.routers.todo-api.tls.certResolver: letsencrypt
@@ -593,13 +662,21 @@ services:
       <<: *env-vars
       VIKUNJA_API_URL: https://todo.${DOMAIN}/api/v1
     <<: *networking
+    <<: *logging
+    healthcheck:
+      test: ["CMD-SHELL", "curl --fail localhost"]
+      interval: 1m30s
+      timeout: 30s
+      retries: 5
+      start_period: 30s
     restart: unless-stopped
 
   code-server:
-    image: lscr.io/linuxserver/openvscode-server:latest
+    image: lscr.io/linuxserver/openvscode-server
     container_name: code-server
     restart: unless-stopped
     <<: *networking
+    <<: *logging
     environment:
       <<: *env-vars
       CONNECTION_TOKEN: ${CODE_PASSWORD}
@@ -610,12 +687,6 @@ services:
       - sync:/sync
     ports:
       - 8443:8443
-    healthcheck:
-      test: ["CMD-SHELL", "curl localhost:3000"]
-      interval: 1m30s
-      timeout: 30s
-      retries: 5
-      start_period: 30s
     labels:
       traefik.port: 8443
       traefik.http.routers.code.rule: Host(`dev.${DOMAIN}`)
@@ -633,7 +704,14 @@ services:
     ports:
       - 6611:6611
     <<: *networking
+    <<: *logging
     environment: *env-vars
+    healthcheck:
+      test: ["CMD-SHELL", "curl --fail localhost:6610"]
+      interval: 1m30s
+      timeout: 30s
+      retries: 5
+      start_period: 30s
     labels:
       traefik.http.routers.git.rule: Host(`git.${DOMAIN}`)
       traefik.http.routers.git.entrypoints: websecure
@@ -653,6 +731,7 @@ services:
       - 22000:22000
       - 21027:21027/udp
     <<: *networking
+    <<: *logging
     healthcheck:
       test: nc -z 127.0.0.1 8384 || exit 1
       interval: 30s
@@ -670,6 +749,7 @@ services:
     container_name: vaultwarden
     restart: unless-stopped
     <<: *networking
+    <<: *logging
     volumes:
       - config-vaultwarden:/data
     environment:
@@ -685,7 +765,8 @@ services:
       traefik.http.routers.vaultwarden-ui.tls: true
       traefik.http.routers.vaultwarden-ui.tls.certResolver: letsencrypt
       traefik.http.routers.vaultwarden-ui.service: vaultwarden-ui
-      traefik.http.routers.vaultwarden-websocket.rule: Host(`vault.${DOMAIN}`) && Path(`/notifications/hub`)
+      traefik.http.routers.vaultwarden-websocket.rule:
+        Host(`vault.${DOMAIN}`) && Path(`/notifications/hub`)
       traefik.http.routers.vaultwarden-websocket.entrypoints: websecure
       traefik.http.routers.vaultwarden-websocket.tls: true
       traefik.http.routers.vaultwarden-websocket.tls.certResolver: letsencrypt
@@ -698,13 +779,67 @@ services:
     restart: unless-stopped
     environment: *env-vars
     <<: *networking
+    <<: *logging
     volumes:
       - config-freshrss:/config
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "curl -fsS 'http://localhost/i/' | grep -q 'jsonVars' || exit 1",
+        ]
+      interval: 1m30s
+      timeout: 30s
+      retries: 5
+      start_period: 30s
     labels:
       traefik.http.routers.freshrss.rule: Host(`rss.${DOMAIN}`)
       traefik.http.routers.freshrss.entrypoints: websecure
       traefik.http.routers.freshrss.tls: true
       traefik.http.routers.freshrss.tls.certResolver: letsencrypt
+
+  wallabag:
+    image: wallabag/wallabag
+    container_name: pocket
+    <<: *dns
+    <<: *logging
+    networks:
+      - internal
+      - web
+      - private_network
+    environment:
+      <<: *env-vars
+      POSTGRES_USER: ${DATABASE_USERNAME}
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD}
+      SYMFONY__ENV__DATABASE_DRIVER: pdo_pgsql
+      SYMFONY__ENV__DATABASE_HOST: pocket_db
+      SYMFONY__ENV__DATABASE_PORT: 5432
+      SYMFONY__ENV__DATABASE_NAME: wallabag
+      SYMFONY__ENV__DATABASE_USER: ${DATABASE_USERNAME}
+      SYMFONY__ENV__DATABASE_PASSWORD: ${DATABASE_PASSWORD}
+      SYMFONY__ENV__DOMAIN_NAME: https://pocket.${DOMAIN}
+      SYMFONY__ENV__SERVER_NAME: Pocket
+    volumes:
+      - config-pocket:/var/www/wallabag/web/assets/images
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "--no-verbose",
+          "--tries=1",
+          "--spider",
+          "http://localhost",
+        ]
+      interval: 1m
+      timeout: 3s
+    depends_on:
+      - pocket_db
+    labels:
+      traefik.http.routers.pocket.rule: Host(`pocket.${DOMAIN}`)
+      traefik.http.routers.pocket.entrypoints: websecure
+      traefik.http.routers.pocket.tls: true
+      traefik.http.routers.pocket.tls.certResolver: letsencrypt
 
   wiki:
     image: outlinewiki/outline
@@ -713,6 +848,7 @@ services:
     environment: *env-vars
     env_file: ${CONFIG_DIR}/outline/config.env
     <<: *dns
+    <<: *logging
     networks:
       - internal
       - web
@@ -721,6 +857,12 @@ services:
       - wiki_db
       - wiki_redis
       - minio
+    healthcheck:
+      test: ["CMD-SHELL", "/bin/netstat -pant | /bin/grep ':3000'"]
+      interval: 1m30s
+      timeout: 30s
+      retries: 5
+      start_period: 30s
     labels:
       traefik.http.routers.outline.rule: Host(`wiki.${DOMAIN}`)
       traefik.http.services.outline.loadbalancer.server.port: 3000
@@ -739,6 +881,7 @@ services:
     volumes:
       - config-outline-storage:/data
     <<: *networking
+    <<: *logging
     environment:
       <<: *env-vars
       MINIO_BROWSER_REDIRECT_URL: "https://minio.${DOMAIN}"
@@ -764,7 +907,7 @@ services:
   ###
 
   radarr:
-    image: lscr.io/linuxserver/radarr:latest
+    image: lscr.io/linuxserver/radarr
     container_name: radarr
     restart: unless-stopped
     environment: *env-vars
@@ -774,20 +917,22 @@ services:
       - media-movies:/movies
       - downloads:/downloads
     <<: *networking
+    <<: *logging
     healthcheck:
       test: ["CMD-SHELL", "curl --fail localhost:7878"]
       interval: 45s
       timeout: 30s
       retries: 3
     labels:
-      traefik.http.routers.radarr.rule: Host(`request.${DOMAIN}`) && PathPrefix(`/movies`)
+      traefik.http.routers.radarr.rule:
+        Host(`request.${DOMAIN}`) && PathPrefix(`/movies`)
       traefik.http.routers.radarr.entrypoints: websecure
       traefik.http.services.radarr.loadbalancer.server.port: 7878
       traefik.http.routers.radarr.tls: true
       traefik.http.routers.radarr.tls.certResolver: letsencrypt
 
   sonarr:
-    image: lscr.io/linuxserver/sonarr:latest
+    image: lscr.io/linuxserver/sonarr
     container_name: sonarr
     restart: unless-stopped
     environment: *env-vars
@@ -797,20 +942,22 @@ services:
       - media-shows:/shows
       - downloads:/downloads
     <<: *networking
+    <<: *logging
     healthcheck:
       test: ["CMD-SHELL", "curl --fail localhost:8989"]
       interval: 45s
       timeout: 30s
       retries: 3
     labels:
-      traefik.http.routers.sonarr.rule: Host(`request.${DOMAIN}`) && PathPrefix(`/shows`)
+      traefik.http.routers.sonarr.rule:
+        Host(`request.${DOMAIN}`) && PathPrefix(`/shows`)
       traefik.http.routers.sonarr.entrypoints: websecure
       traefik.http.services.sonarr.loadbalancer.server.port: 8989
       traefik.http.routers.sonarr.tls: true
       traefik.http.routers.sonarr.tls.certResolver: letsencrypt
 
   lidarr:
-    image: lscr.io/linuxserver/lidarr:latest
+    image: lscr.io/linuxserver/lidarr
     container_name: lidarr
     environment: *env-vars
     restart: unless-stopped
@@ -820,13 +967,15 @@ services:
       - media-music:/music
       - downloads:/downloads
     <<: *networking
+    <<: *logging
     healthcheck:
       test: ["CMD-SHELL", "curl --fail localhost:8686"]
       interval: 45s
       timeout: 30s
       retries: 3
     labels:
-      traefik.http.routers.lidarr.rule: Host(`request.${DOMAIN}`) && PathPrefix(`/music`)
+      traefik.http.routers.lidarr.rule:
+        Host(`request.${DOMAIN}`) && PathPrefix(`/music`)
       traefik.http.services.lidarr.loadBalancer.server.port: 8686
       traefik.http.routers.lidarr.entrypoints: websecure
       traefik.http.routers.lidarr.tls: true
@@ -843,6 +992,7 @@ services:
       - media-books:/books
       - downloads:/downloads
     <<: *networking
+    <<: *logging
     healthcheck:
       test: ["CMD-SHELL", "curl --fail localhost:8787"]
       interval: 45s
@@ -850,14 +1000,15 @@ services:
       retries: 3
     labels:
       traefik.port: 5656
-      traefik.http.routers.readarr.rule: Host(`request.${DOMAIN}`) && PathPrefix(`/books`)
+      traefik.http.routers.readarr.rule:
+        Host(`request.${DOMAIN}`) && PathPrefix(`/books`)
       traefik.http.services.readarr.loadBalancer.server.port: 8787
       traefik.http.routers.readarr.entrypoints: websecure
       traefik.http.routers.readarr.tls: true
       traefik.http.routers.readarr.tls.certResolver: letsencrypt
 
   ytdl_material:
-    image: tzahi12345/youtubedl-material:latest
+    image: tzahi12345/youtubedl-material
     container_name: YoutubeDL
     environment:
       ALLOW_CONFIG_MUTATIONS: "true"
@@ -879,6 +1030,7 @@ services:
       - web
       - private_network
     <<: *dns
+    <<: *logging
     healthcheck:
       test: ["CMD-SHELL", "curl --fail localhost:17442"]
       interval: 45s
@@ -897,6 +1049,7 @@ services:
     restart: unless-stopped
     environment: *env-vars
     <<: *networking
+    <<: *logging
     volumes:
       - config-prowlarr:/config
     ports:
@@ -907,6 +1060,7 @@ services:
       timeout: 30s
       retries: 3
     labels:
+      traefik.port: 9696
       traefik.http.routers.prowlarr.rule: Host(`indexers.${DOMAIN}`)
       traefik.http.routers.prowlarr.entrypoints: websecure
       traefik.http.services.prowlarr.loadbalancer.server.port: 9696
@@ -914,7 +1068,7 @@ services:
       traefik.http.routers.prowlarr.tls.certResolver: letsencrypt
 
   qbittorrent:
-    image: lscr.io/linuxserver/qbittorrent:latest
+    image: lscr.io/linuxserver/qbittorrent
     container_name: qbittorrent
     restart: unless-stopped
     environment:
@@ -928,6 +1082,7 @@ services:
       - 6881:6881/tcp
       - 6881:6881/udp
     <<: *networking
+    <<: *logging
     healthcheck:
       test: ["CMD-SHELL", "curl --fail localhost:8980"]
       interval: 1m30s
@@ -944,7 +1099,7 @@ services:
       traefik.http.middlewares.qbittorrent-headers.headers.customrequestheaders.X-Frame-Options: SAMEORIGIN
       traefik.http.middlewares.qbittorrent-headers.headers.customrequestheaders.Referer: ""
       traefik.http.middlewares.qbittorrent-headers.headers.customrequestheaders.Origin: ""
-      traefik.http.routers.qbittorrent.middlewares: qbittorrent-headers
+      traefik.http.routers.qbittorrent.middlewares: qbittorrent-headers,authelia@docker
 
   jellyseerr:
     image: fallenbagel/jellyseerr
@@ -952,35 +1107,29 @@ services:
     restart: unless-stopped
     environment: *env-vars
     <<: *networking
+    <<: *logging
     volumes:
       - config-jellyseerr:/app/config
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "--no-verbose",
+          "--tries=1",
+          "--spider",
+          "http://localhost:5055",
+        ]
+      interval: 1m30s
+      timeout: 30s
+      retries: 5
+      start_period: 30s
     labels:
       traefik.http.routers.jellyseerr.rule: Host(`request.${DOMAIN}`)
       traefik.http.routers.jellyseerr.entrypoints: websecure
       traefik.http.services.jellyseerr.loadbalancer.server.port: 5055
       traefik.http.routers.jellyseerr.tls: true
       traefik.http.routers.jellyseerr.tls.certResolver: letsencrypt
-
-  mediaelch:
-    image: masonxx/mediaelch
-    container_name: mediaelch
-    restart: unless-stopped
-    environment: *env-vars
-    <<: *networking
-    volumes:
-      - config-mediaelch:/config/xdg/config/kvibes
-      - media-movies:/movies
-      - media-music:/music
-      - media-shows:/shows
-    ports:
-      - 5800:5800
-      - 5900:5900
-    labels:
-      traefik.http.routers.mediaelch.rule: Host(`metadata.${DOMAIN}`)
-      traefik.http.routers.mediaelch.entrypoints: websecure
-      traefik.http.services.mediaelch.loadbalancer.server.port: 5800
-      traefik.http.routers.mediaelch.tls: true
-      traefik.http.routers.mediaelch.tls.certResolver: letsencrypt
 
   watch:
     container_name: watch
@@ -989,7 +1138,7 @@ services:
     environment:
       <<: *env-vars
       DOCKER_MODS: linuxserver/mods:jellyfin-amd
-      JELLYFIN_PublishedServerUrl: 192.168.1.123
+      JELLYFIN_PublishedServerUrl: ${IP}
     volumes:
       - config-jellyfin:/config
       - config-jellyfin-cache:/cache
@@ -1003,6 +1152,7 @@ services:
       - 7359:7359/udp
       - 1900:1900/udp
     <<: *networking
+    <<: *logging
     healthcheck:
       test: ["CMD-SHELL", "curl --fail localhost:8096"]
       interval: 1m30s
@@ -1011,12 +1161,20 @@ services:
       start_period: 30s
     labels:
       traefik.http.services.watch.loadBalancer.server.port: 8096
-      traefik.http.middlewares.csp.headers.contentSecurityPolicy: "default-src https: data: blob:; style-src 'self' 'unsafe-inline' https://ctalvio.github.io https://fonts.googleapis.com/css2 https://cdn.jsdelivr.net https://raw.githubusercontent.com/danieladov; script-src 'self' 'unsafe-inline' https://www.gstatic.com/cv/js/sender/v1/cast_sender.js https://www.youtube.com/iframe_api https://s.ytimg.com worker-src 'self' blob:; connect-src 'self' https://raw.githubusercontent.com/danieladov; object-src 'none'; frame-ancestors 'self'"
       traefik.http.routers.watch.rule: Host(`watch.${DOMAIN}`)
       traefik.http.routers.watch.entrypoints: websecure
-      traefik.http.routers.watch.middlewares: csp
       traefik.http.routers.watch.tls: true
       traefik.http.routers.watch.tls.certResolver: letsencrypt
+      traefik.http.middlewares.csp.headers.contentSecurityPolicy: >-
+        default-src https: data: blob:; style-src 'self' 'unsafe-inline'
+        https://ctalvio.github.io https://fonts.googleapis.com/css2
+        https://cdn.jsdelivr.net https://raw.githubusercontent.com/danieladov;
+        script-src 'self' 'unsafe-inline'
+        https://www.gstatic.com/cv/js/sender/v1/cast_sender.js
+        https://www.youtube.com/iframe_api https://s.ytimg.com worker-src 'self'
+        blob:; connect-src 'self' https://raw.githubusercontent.com/danieladov;
+        object-src 'none'; frame-ancestors 'self'
+      traefik.http.routers.watch.middlewares: csp
 
   ###
   #   ____              _
@@ -1035,6 +1193,7 @@ services:
     volumes:
       - media-books:/config
     <<: *networking
+    <<: *logging
     healthcheck:
       test: ["CMD-SHELL", "curl --fail localhost:8080"]
       interval: 1m30s
@@ -1059,6 +1218,7 @@ services:
       - config-calibre-web:/config
       - media-books:/books
     <<: *networking
+    <<: *logging
     healthcheck:
       test: ["CMD-SHELL", "curl --fail localhost:8083"]
       interval: 1m30s
@@ -1096,10 +1256,16 @@ services:
     networks:
       - internal
     healthcheck:
-      test: '/usr/bin/mysql --user=${DATABASE_USERNAME} --password=${DATABASE_PASSWORD} --execute "SHOW DATABASES;"'
+      test:
+        [
+          "CMD-SHELL",
+          '/usr/bin/mysql --user=${DATABASE_USERNAME}
+          --password=${DATABASE_PASSWORD} --execute "SHOW DATABASES;"',
+        ]
       interval: 3s
       timeout: 1s
       retries: 5
+    <<: *logging
     labels:
       traefik.enable: false
 
@@ -1114,11 +1280,17 @@ services:
     volumes:
       - config-mongo:/data/db
     healthcheck:
-      test: echo 'db.runCommand("ping").ok' | mongo mongo:27017/test --quiet
+      test:
+        [
+          "CMD-SHELL",
+          'echo ''db.runCommand("ping").ok'' | mongosh localhost:27017/test
+          --quiet',
+        ]
       interval: 10s
       timeout: 10s
       retries: 5
       start_period: 40s
+    <<: *logging
     labels:
       traefik.enable: false
 
@@ -1133,6 +1305,7 @@ services:
       interval: 10s
       timeout: 30s
       retries: 3
+    <<: *logging
     labels:
       traefik.enable: false
 
@@ -1144,15 +1317,16 @@ services:
     volumes:
       - config-outline-db:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD", "pg_isready -U user"]
+      test: ["CMD-SHELL", "pg_isready -U ${DATABASE_USERNAME}"]
       interval: 30s
       timeout: 20s
       retries: 3
     environment:
       <<: *env-vars
-      POSTGRES_USER: "user"
+      POSTGRES_USER: ${DATABASE_USERNAME}
       POSTGRES_PASSWORD: ${DATABASE_PASSWORD}
-      POSTGRES_DB: "outline"
+      POSTGRES_DB: outline
+    <<: *logging
     labels:
       traefik.enable: false
 
@@ -1164,7 +1338,7 @@ services:
     volumes:
       - config-auth-db:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD", "pg_isready -U ${DATABASE_USERNAME}"]
+      test: ["CMD-SHELL", "pg_isready -U ${DATABASE_USERNAME}"]
       interval: 30s
       timeout: 20s
       retries: 3
@@ -1172,6 +1346,28 @@ services:
       <<: *env-vars
       POSTGRES_USER: ${DATABASE_USERNAME}
       POSTGRES_PASSWORD: ${DATABASE_PASSWORD}
-      POSTGRES_DB: "auth"
+      POSTGRES_DB: auth
+    <<: *logging
+    labels:
+      traefik.enable: false
+
+  pocket_db:
+    image: postgres
+    container_name: pocket_db
+    networks:
+      - internal
+    volumes:
+      - config-pocket-db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DATABASE_USERNAME}"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+    environment:
+      <<: *env-vars
+      POSTGRES_USER: ${DATABASE_USERNAME}
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD}
+      POSTGRES_DB: wallabag
+    <<: *logging
     labels:
       traefik.enable: false
