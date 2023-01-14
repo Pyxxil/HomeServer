@@ -1,0 +1,112 @@
+x-common-metrics: &metrics
+  prometheus:
+    image: prom/prometheus
+    container_name: prometheus
+    <<: *common
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - "rm -rf /prometheus/data/chunks_head; /bin/prometheus
+        --config.file=/etc/prometheus/prometheus.yml
+        --storage.tsdb.path=/prometheus"
+    volumes:
+      - config-prometheus:/etc/prometheus
+    healthcheck:
+      test: ["CMD-SHELL", "wget --spider http://localhost:9090 || exit 1"]
+      interval: 10s
+      timeout: 15s
+      retries: 10
+      start_period: 40s
+    labels:
+      traefik.http.routers.prometheus.rule: Host(`prometheus.${DOMAIN}`)
+      traefik.http.routers.prometheus.entrypoints: websecure
+      traefik.http.services.prometheus.loadbalancer.server.port: 9090
+      traefik.http.routers.prometheus.tls: true
+      traefik.http.routers.prometheus.tls.certResolver: letsencrypt
+      traefik.backend: prometheus
+
+  grafana:
+    image: grafana/grafana
+    container_name: grafana
+    <<: *common
+    user: ${PUID}
+    environment:
+      <<: *env-vars
+      GF_SERVER_ROOT_URL: https://metrics.${DOMAIN}
+    volumes:
+      - config-grafana:/etc/grafana
+      - config-grafana-data:/var/lib/grafana
+      - config-grafana-home:/usr/share/grafana
+    healthcheck:
+      test: ["CMD-SHELL", "wget --spider http://localhost:3000 || exit 1"]
+      interval: 10s
+      timeout: 15s
+      retries: 10
+      start_period: 40s
+    labels:
+      traefik.http.routers.grafana.rule: Host(`metrics.${DOMAIN}`)
+      traefik.http.services.grafana.loadBalancer.server.port: 3000
+      traefik.http.routers.grafana.entrypoints: websecure
+      traefik.http.routers.grafana.tls: true
+      traefik.http.routers.grafana.tls.certResolver: letsencrypt
+
+  loki:
+    container_name: loki
+    image: grafana/loki
+    <<: *common
+    command: -config.file=/etc/loki/loki-config.yaml
+    volumes:
+      - config-loki:/etc/loki
+      - config-loki-data:/loki
+    ports:
+      - 3100:3100
+    labels:
+      traefik.enable: false
+
+  promtail:
+    container_name: promtail
+    image: grafana/promtail
+    <<: *common
+    command: -config.file=/etc/promtail/promtail-config.yaml
+    volumes:
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - config-promtail:/etc/promtail
+    labels:
+      traefik.http.routers.promtail.rule: Host(`logs.${DOMAIN}`)
+      traefik.http.services.promtail.loadBalancer.server.port: 9080
+      traefik.http.routers.promtail.entrypoints: websecure
+      traefik.http.routers.promtail.tls: true
+      traefik.http.routers.promtail.tls.certResolver: letsencrypt
+
+  adguard_exporter:
+    image: ebrianne/adguard-exporter
+    container_name: adguard-exporter
+    <<: *common
+    depends_on:
+      - adguard
+    environment:
+      adguard_protocol: http
+      adguard_hostname: adguard
+      adguard_username: ${ADGUARD_USERNAME}
+      adguard_password: ${ADGUARD_PASSWORD}
+      adguard_port: 3000
+      server_port: 9617
+      interval: 10s
+      log_limit: 10000
+    labels:
+      traefik.enable: false
+
+  node_exporter:
+    image: quay.io/prometheus/node-exporter
+    container_name: node-exporter
+    command: --path.rootfs=/host
+    <<: *common
+    pid: host
+    volumes:
+      - /:/host:ro,rslave
+    healthcheck:
+      test: ["CMD-SHELL", "/bin/netstat -pant | /bin/grep ':9100'"]
+      interval: 45s
+      timeout: 30s
+      retries: 3
+    labels:
+      traefik.enable: false

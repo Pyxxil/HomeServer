@@ -1,0 +1,42 @@
+x-common-books: &books
+  calibre:
+    container_name: calibre
+    image: lscr.io/linuxserver/calibre
+    <<: *common
+    volumes:
+      - media-books:/config
+    healthcheck:
+      test: ["CMD-SHELL", "curl --fail localhost:8080"]
+      interval: 1m30s
+      timeout: 30s
+      retries: 5
+      start_period: 30s
+    labels:
+      traefik.http.routers.calibre.rule: Host(`calibre.${DOMAIN}`)
+      traefik.http.services.calibre.loadBalancer.server.port: 8080
+      traefik.http.routers.calibre.entrypoints: websecure
+      traefik.http.routers.calibre.tls: true
+      traefik.http.routers.calibre.tls.certResolver: letsencrypt
+
+  read:
+    container_name: read
+    image: lscr.io/linuxserver/calibre-web
+    <<: *common
+    environment:
+      <<: *env-vars
+      DOCKER_MODS: linuxserver/calibre-web:calibre
+    volumes:
+      - config-calibre-web:/config
+      - media-books:/books
+    healthcheck:
+      test: ["CMD-SHELL", "curl --fail localhost:8083"]
+      interval: 1m30s
+      timeout: 30s
+      retries: 5
+      start_period: 30s
+    labels:
+      traefik.http.routers.read.rule: Host(`read.${DOMAIN}`)
+      traefik.http.services.read.loadBalancer.server.port: 8083
+      traefik.http.routers.read.entrypoints: websecure
+      traefik.http.routers.read.tls: true
+      traefik.http.routers.read.tls.certResolver: letsencrypt

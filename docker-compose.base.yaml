@@ -1,0 +1,10 @@
+version: "3.7"
+
+services:
+  <<: *admin
+  <<: *metrics
+  <<: *dns
+  <<: *cloud
+  <<: *media
+  <<: *books
+  <<: *databases

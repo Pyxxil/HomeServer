@@ -1,0 +1,120 @@
+x-common-admin: &admin
+  traefik:
+    container_name: traefik
+    image: traefik
+    <<: *common
+    command:
+      - --api=true
+      - --api.dashboard=true
+      - --certificatesresolvers.letsencrypt.acme.caserver=https://acme-v02.api.letsencrypt.org/directory
+      - --certificatesresolvers.letsencrypt.acme.dnschallenge.delaybeforecheck=0
+      - --certificatesresolvers.letsencrypt.acme.dnschallenge.provider=cloudflare
+      - --certificatesresolvers.letsencrypt.acme.dnschallenge.resolvers=1.1.1.1:53,8.8.8.8:53
+      - --certificatesresolvers.letsencrypt.acme.email=${ADMIN_EMAIL}
+      - --certificatesresolvers.letsencrypt.acme.storage=/config/acme.json
+      - --entrypoints.web.address=:80
+      - --entrypoints.web.forwardedHeaders.insecure=false
+      - --entrypoints.web.proxyProtocol.insecure=false
+      - --entryPoints.web.forwardedHeaders.trustedIPs=10.0.0.0/8,172.0.0.0/8,192.168.0.0/16,fc00::/7,100.0.0.0/8
+      - --entryPoints.web.proxyProtocol.trustedIPs=10.0.0.0/8,172.0.0.0/8,192.168.0.0/16,fc00::/7,100.0.0.0/8
+      - --experimental.http3=true
+      - --entrypoints.websecure.address=:443
+      - --entrypoints.websecure.http3
+      - --entrypoints.websecure.http.tls.certResolver=letsencrypt
+      - --entrypoints.websecure.http.tls.domains[0].main=${DOMAIN}
+      - --entrypoints.websecure.http.tls.domains[0].sans=*.${DOMAIN}
+      - --entryPoints.websecure.forwardedHeaders.trustedIPs=10.0.0.0/8,172.0.0.0/8,192.168.0.0/16,fc00::/7,100.0.0.0/8
+      - --entryPoints.websecure.proxyProtocol.trustedIPs=10.0.0.0/8,172.0.0.0/8,192.168.0.0/16,fc00::/7,100.0.0.0/8
+      - --entrypoints.websecure.forwardedHeaders.insecure=false
+      - --entrypoints.websecure.proxyProtocol.insecure=false
+      - --ping=true
+      - --metrics.prometheus=true
+      - --providers.docker=true
+      - --providers.docker.watch=true
+      - --providers.docker.exposedbydefault=true
+      - --providers.docker.network=web
+    environment:
+      <<: *env-vars
+      CLOUDFLARE_DNS_API_TOKEN: ${CLOUDFLARE_DNS_API_TOKEN}
+    ports:
+      - 80:80
+      - 443:443/tcp
+      - 443:443/udp
+      - 8080:8080
+      - 8888:8888
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - config-traefik:/config
+    networks:
+      internal:
+      web:
+        priority: 20
+        aliases:
+          - auth.${DOMAIN}
+      private_network:
+    healthcheck:
+      test: ["CMD", "traefik", "healthcheck", "--ping"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+    labels:
+      traefik.http.routers.dashboard.rule: Host(`dash.${DOMAIN}`)
+      traefik.http.routers.dashboard.service: api@internal
+      traefik.http.routers.dashboard.middlewares: authelia
+      traefik.http.routers.dashboard.tls: true
+      traefik.http.routers.dashboard.tls.certResolver: letsencrypt
+      traefik.http.routers.http-catchall.rule: hostregexp(`{host:.+}`)
+      traefik.http.routers.http-catchall.entrypoints: web
+      traefik.http.routers.http-catchall.middlewares: redirect-to-https
+      traefik.http.middlewares.redirect-to-https.redirectscheme.scheme: https
+      traefik.http.middlewares.redirect-to-https.redirectScheme.permanent: true
+
+  portainer:
+    image: portainer/portainer-ce
+    container_name: admin
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - config-portainer:/data
+    <<: *common
+    labels:
+      traefik.http.routers.admin.rule: Host(`admin.${DOMAIN}`)
+      traefik.http.services.admin.loadbalancer.server.port: 9000
+      traefik.http.routers.admin.entrypoints: websecure
+      traefik.http.routers.admin.tls: true
+      traefik.http.routers.admin.tls.certResolver: letsencrypt
+
+  auth:
+    image: authelia/authelia
+    container_name: authelia
+    volumes:
+      - config-authelia:/config
+    <<: *common
+    labels:
+      traefik.http.routers.auth.rule: Host(`auth.${DOMAIN}`)
+      traefik.http.services.auth.loadbalancer.server.port: 9091
+      traefik.http.routers.auth.entrypoints: websecure
+      traefik.http.routers.auth.tls: true
+      traefik.http.routers.auth.tls.certResolver: letsencrypt
+      traefik.http.middlewares.authelia.forwardauth.address: http://authelia:9091/api/verify?rd=https://auth.${DOMAIN}
+      traefik.http.middlewares.authelia.forwardauth.trustForwardHeader: true
+      traefik.http.middlewares.authelia.forwardauth.authResponseHeaders: Remote-User,Remote-Groups,Remote-Name,Remote-Email
+
+  diun:
+    image: crazymax/diun
+    container_name: diun
+    command: serve
+    <<: *common
+    volumes:
+      - config-diun:/data
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      <<: *env-vars
+      DIUN_WATCH_WORKERS: 20
+      DIUN_WATCH_SCHEDULE: 0 */6 * * *
+      DIUN_WATCH_JITTER: 30s
+      DIUN_PROVIDERS_DOCKER: true
+      DIUN_PROVIDERS_DOCKER_WATCHBYDEFAULT: true
+      DIUN_NOTIF_DISCORD_WEBHOOKURL: ${DISCORD_WEBHOOK_URL}
+      DIUN_NOTIF_DISCORD_MENTIONS: ${DISCORD_MENTIONS}
+    labels:
+      traefik.enable: false

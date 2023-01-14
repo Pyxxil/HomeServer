@@ -1,0 +1,249 @@
+x-common-cloud: &cloud
+  todo-api:
+    image: vikunja/api
+    container_name: todo-api
+    <<: *common
+    environment:
+      <<: *env-vars
+      VIKUNJA_DATABASE_HOST: todo-db
+      VIKUNJA_DATABASE_PASSWORD: ${DATABASE_PASSWORD}
+      VIKUNJA_DATABASE_TYPE: mysql
+      VIKUNJA_DATABASE_USER: ${DATABASE_USERNAME}
+      VIKUNJA_DATABASE_DATABASE: ${TODO_DATABASE}
+      VIKUNJA_SERVICE_JWTSECRET: ${JWT_SECRET}
+      VIKUNJA_SERVICE_FRONTENDURL: https://todo.${DOMAIN}/
+    volumes:
+      - config-vikunja:/app/vikunja/files
+    depends_on:
+      - todo-db
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "--no-verbose",
+          "--tries=1",
+          "--spider",
+          "http://localhost:3456/api/v1/info",
+        ]
+      interval: 1m30s
+      timeout: 30s
+      retries: 5
+      start_period: 30s
+    labels:
+      traefik.http.routers.todo-api.rule:
+        Host(`todo.${DOMAIN}`) && PathPrefix(`/api/v1`, `/dav/`,
+        `/.well-known/`)
+      traefik.http.routers.todo-api.entrypoints: websecure
+      traefik.http.routers.todo-api.tls: true
+      traefik.http.routers.todo-api.tls.certResolver: letsencrypt
+
+  todo:
+    container_name: todo
+    image: vikunja/frontend
+    <<: *common
+    depends_on:
+      - todo-api
+    ports:
+      - 3031:3000
+    environment:
+      <<: *env-vars
+      VIKUNJA_API_URL: https://todo.${DOMAIN}/api/v1
+    healthcheck:
+      test: ["CMD-SHELL", "curl --fail localhost"]
+      interval: 1m30s
+      timeout: 30s
+      retries: 5
+      start_period: 30s
+    labels:
+      traefik.http.routers.todo.rule: Host(`todo.${DOMAIN}`)
+      traefik.http.routers.todo.entrypoints: websecure
+      traefik.http.routers.todo.tls: true
+      traefik.http.routers.todo.tls.certResolver: letsencrypt
+
+  code-server:
+    image: lscr.io/linuxserver/openvscode-server:1.74.2
+    container_name: code-server
+    <<: *common
+    environment:
+      <<: *env-vars
+      SUDO_PASSWORD: ${CODE_SUDO_PASSWORD}
+      PROXY_DOMAIN: dev.${DOMAIN}
+    volumes:
+      - config-code:/config
+      - sync:/sync
+    labels:
+      traefik.http.routers.code.rule: Host(`dev.${DOMAIN}`)
+      traefik.http.services.code.loadBalancer.server.port: 3000
+      traefik.http.routers.code.entrypoints: websecure
+      traefik.http.routers.code.tls: true
+      traefik.http.routers.code.tls.certResolver: letsencrypt
+
+  onedev:
+    image: 1dev/server
+    container_name: git
+    <<: *common
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - config-onedev:/opt/onedev
+    healthcheck:
+      test: ["CMD-SHELL", "curl --fail localhost:6610"]
+      interval: 1m30s
+      timeout: 30s
+      retries: 5
+      start_period: 30s
+    labels:
+      traefik.http.routers.git.rule: Host(`git.${DOMAIN}`)
+      traefik.http.routers.git.entrypoints: websecure
+      traefik.http.services.git.loadBalancer.server.port: 6610
+      traefik.http.routers.git.tls: true
+      traefik.http.routers.git.tls.certResolver: letsencrypt
+
+  sync:
+    container_name: sync
+    image: lscr.io/linuxserver/syncthing
+    <<: *common
+    volumes:
+      - config-syncthing:/config
+      - sync:/config/Sync
+    ports:
+      - 22000:22000
+      - 21027:21027/udp
+    healthcheck:
+      test: nc -z 127.0.0.1 8384 || exit 1
+      interval: 30s
+      timeout: 3s
+      retries: 3
+    labels:
+      traefik.http.routers.sync.rule: Host(`sync.${DOMAIN}`)
+      traefik.http.routers.sync.entrypoints: websecure
+      traefik.http.services.sync.loadbalancer.server.port: 8384
+      traefik.http.routers.sync.tls: true
+      traefik.http.routers.sync.tls.certResolver: letsencrypt
+
+  vaultwarden:
+    image: vaultwarden/server
+    container_name: vaultwarden
+    <<: *common
+    volumes:
+      - config-vaultwarden:/data
+    environment:
+      <<: *env-vars
+      DOMAIN: "https://vault.${DOMAIN}"
+      ADMIN_TOKEN: ${VAULTWARDEN_TOKEN}
+      WEBSOCKET_ENABLED: true
+      ROCKET_PORT: 8800
+    labels:
+      traefik.http.routers.vaultwarden-ui.rule: Host(`vault.${DOMAIN}`)
+      traefik.http.services.vaultwarden-ui.loadbalancer.server.port: 8800
+      traefik.http.routers.vaultwarden-ui.entrypoints: websecure
+      traefik.http.routers.vaultwarden-ui.tls: true
+      traefik.http.routers.vaultwarden-ui.tls.certResolver: letsencrypt
+      traefik.http.routers.vaultwarden-ui.service: vaultwarden-ui
+      traefik.http.routers.vaultwarden-websocket.rule:
+        Host(`vault.${DOMAIN}`) && Path(`/notifications/hub`)
+      traefik.http.routers.vaultwarden-websocket.entrypoints: websecure
+      traefik.http.routers.vaultwarden-websocket.tls: true
+      traefik.http.routers.vaultwarden-websocket.tls.certResolver: letsencrypt
+      traefik.http.routers.vaultwarden-websocket.service: vaultwarden-websocket
+      traefik.http.services.vaultwarden-websocket.loadbalancer.server.port: 3012
+
+  freshrss:
+    image: lscr.io/linuxserver/freshrss
+    container_name: freshrss
+    <<: *common
+    volumes:
+      - config-freshrss:/config
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "curl -fsS 'http://localhost/i/' | grep -q 'jsonVars' || exit 1",
+        ]
+      interval: 1m30s
+      timeout: 30s
+      retries: 5
+      start_period: 30s
+    labels:
+      traefik.http.routers.freshrss.rule: Host(`rss.${DOMAIN}`)
+      traefik.http.routers.freshrss.entrypoints: websecure
+      traefik.http.routers.freshrss.tls: true
+      traefik.http.routers.freshrss.tls.certResolver: letsencrypt
+
+  wallabag:
+    image: wallabag/wallabag
+    container_name: pocket
+    <<: *common
+    environment:
+      <<: *env-vars
+      POSTGRES_USER: ${DATABASE_USERNAME}
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD}
+      SYMFONY__ENV__DATABASE_DRIVER: pdo_pgsql
+      SYMFONY__ENV__DATABASE_HOST: pocket_db
+      SYMFONY__ENV__DATABASE_PORT: 5432
+      SYMFONY__ENV__DATABASE_NAME: wallabag
+      SYMFONY__ENV__DATABASE_USER: ${DATABASE_USERNAME}
+      SYMFONY__ENV__DATABASE_PASSWORD: ${DATABASE_PASSWORD}
+      SYMFONY__ENV__DOMAIN_NAME: https://pocket.${DOMAIN}
+      SYMFONY__ENV__SERVER_NAME: Pocket
+    volumes:
+      - config-pocket:/var/www/wallabag/web/assets/images
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "--no-verbose",
+          "--tries=1",
+          "--spider",
+          "http://localhost",
+        ]
+      interval: 1m
+      timeout: 3s
+    depends_on:
+      - pocket_db
+    labels:
+      traefik.http.routers.pocket.rule: Host(`pocket.${DOMAIN}`)
+      traefik.http.routers.pocket.entrypoints: websecure
+      traefik.http.routers.pocket.tls: true
+      traefik.http.routers.pocket.tls.certResolver: letsencrypt
+
+  wiki:
+    image: outlinewiki/outline
+    container_name: wiki
+    command:
+      sh -c "yarn sequelize:migrate --env production-ssl-disabled && yarn start"
+    env_file: ${CONFIG_DIR}/outline/config.env
+    <<: *common
+    depends_on:
+      - wiki_db
+      - wiki_redis
+      - minio
+    healthcheck:
+      test: ["CMD-SHELL", "/bin/netstat -pant | /bin/grep ':3000'"]
+      interval: 1m30s
+      timeout: 30s
+      retries: 5
+      start_period: 30s
+    labels:
+      traefik.http.routers.outline.rule: Host(`wiki.${DOMAIN}`)
+      traefik.http.services.outline.loadbalancer.server.port: 3000
+      traefik.http.routers.outline.entrypoints: websecure
+      traefik.http.routers.outline.tls: true
+      traefik.http.routers.outline.tls.certResolver: letsencrypt
+
+  homeassistant:
+    image: ghcr.io/home-assistant/home-assistant:stable
+    container_name: homeassistant
+    <<: *common
+    volumes:
+      - config-home-assistant:/config
+      - /etc/localtime:/etc/localtime:ro
+    labels:
+      traefik.http.routers.homeassistant.rule: Host(`home.${DOMAIN}`)
+      traefik.http.services.homeassistant.loadbalancer.server.port: 8123
+      traefik.http.routers.homeassistant.entrypoints: websecure
+      traefik.http.routers.homeassistant.tls: true
+      traefik.http.routers.homeassistant.tls.certResolver: letsencrypt
+      traefik.http.routers.homeassistant.middlewares: haHeaders
+      traefik.http.middlewares.haHeaders.headers.customrequestheaders.Connection: Upgrade

@@ -1,0 +1,79 @@
+x-common-dns: &dns  
+  unbound:
+    image: mvance/unbound
+    container_name: unbound
+    hostname: unbound
+    <<: *common
+    restart: always
+    networks:
+      internal:
+      private_network:
+        ipv4_address: 10.2.0.200
+    volumes:
+      - config-unbound:/opt/unbound/etc/unbound/
+    labels:
+      traefik.enable: false
+
+  dnscrypt:
+    image: zquestz/dnscrypt-server
+    container_name: dnscrypt
+    command: init -N ${DOMAIN} -E '10.2.0.150:5443' -M 0.0.0.0:9100
+    <<: *common
+    restart: always
+    environment: *env-vars
+    networks:
+      internal:
+      private_network:
+        ipv4_address: 10.2.0.150
+    volumes:
+      - config-dnscrypt:/opt/encrypted-dns/etc/keys
+    ports:
+      - 5443:553/udp
+      - 5443:553/tcp
+      - 9100:9100
+    healthcheck:
+      test: ["CMD-SHELL", "drill -p 553 one.one.one.one @127.0.0.1 || exit 1"]
+      interval: 1m30s
+      timeout: 30s
+      retries: 5
+      start_period: 30s
+    labels:
+      traefik.enable: false
+
+  adguard:
+    container_name: adguard
+    image: adguard/adguardhome
+    <<: *common
+    restart: always
+    depends_on:
+      - unbound
+      - dnscrypt
+    dns:
+      - 127.0.0.1
+      - 10.2.0.200
+      - 10.2.0.150
+    networks:
+      internal:
+      private_network:
+        ipv4_address: 10.2.0.100
+    volumes:
+      - config-adguard:/opt/adguardhome/conf
+    ports:
+      - 53:53/tcp
+      - 53:53/udp
+      - 67:67/udp
+      - 4443:443/tcp
+      - 4443:443/udp
+      - 8853:8853/udp
+      - ${IP}:3000:3000
+    healthcheck:
+      test: ["CMD-SHELL", "/bin/netstat -pant | /bin/grep :53"]
+      interval: 45s
+      timeout: 30s
+      retries: 3
+    labels:
+      traefik.http.routers.adguard.rule: Host(`dns.${DOMAIN}`)
+      traefik.http.services.adguard.loadbalancer.server.port: 3000
+      traefik.http.routers.adguard.entrypoints: websecure
+      traefik.http.routers.adguard.tls: true
+      traefik.http.routers.adguard.tls.certResolver: letsencrypt

@@ -1,0 +1,232 @@
+version: "3.7"
+
+x-common-env-variables: &env-vars
+  PUID: ${PUID}
+  PGID: ${PGID}
+  TZ: ${TIMEZONE}
+
+x-common-driver-variables: &driver-opts
+  type: none
+  o: bind
+
+x-common-networks: &networks
+  networks:
+    - web
+    - internal
+
+x-common-logging: &logging
+  logging:
+    driver: "json-file"
+    options:
+      tag: "{{.ImageName}}|{{.Name}}|{{.ImageFullID}}|{{.FullID}}"
+
+x-common-common: &common
+  <<: *networks
+  <<: *logging
+  restart: unless-stopped
+  environment: *env-vars
+
+networks:
+  web:
+    external: false
+  internal:
+    external: false
+  private_network:
+    ipam:
+      driver: default
+      config:
+        - subnet: 10.2.0.0/24
+
+volumes:
+  config-adguard:
+    driver_opts:
+      <<: *driver-opts
+      device: ${CONFIG_DIR}/adguard
+  config-auth-db:
+    driver_opts:
+      <<: *driver-opts
+      device: ${CONFIG_DIR}/auth/db
+  config-authelia:
+    driver_opts:
+      <<: *driver-opts
+      device: ${CONFIG_DIR}/authelia
+  config-calibre-web:
+    driver_opts:
+      <<: *driver-opts
+      device: ${CONFIG_DIR}/calibre-web
+  config-code:
+    driver_opts:
+      <<: *driver-opts
+      device: ${CONFIG_DIR}/code
+  config-diun:
+    driver_opts:
+      <<: *driver-opts
+      device: ${CONFIG_DIR}/diun
+  config-dnscrypt:
+    driver_opts:
+      <<: *driver-opts
+      device: ${CONFIG_DIR}/dnscrypt
+  config-freshrss:
+    driver_opts:
+      <<: *driver-opts
+      device: ${CONFIG_DIR}/freshrss
+  config-grafana:
+    driver_opts:
+      <<: *driver-opts
+      device: ${CONFIG_DIR}/grafana/config
+  config-grafana-data:
+    driver_opts:
+      <<: *driver-opts
+      device: ${CONFIG_DIR}/grafana/data
+  config-grafana-home:
+    driver_opts:
+      <<: *driver-opts
+      device: ${CONFIG_DIR}/grafana/home
+  config-home-assistant:
+    driver_opts:
+      <<: *driver-opts
+      device: ${CONFIG_DIR}/homeassistant
+  config-jellyfin:
+    driver_opts:
+      <<: *driver-opts
+      device: ${CONFIG_DIR}/jellyfin
+  config-jellyfin-cache:
+    driver_opts:
+      <<: *driver-opts
+      device: ${CONFIG_DIR}/jellyfin/cache
+  config-jellyseerr:
+    driver_opts:
+      <<: *driver-opts
+      device: ${CONFIG_DIR}/jellyseerr
+  config-lidarr:
+    driver_opts:
+      <<: *driver-opts
+      device: ${CONFIG_DIR}/lidarr
+  config-loki:
+    driver_opts:
+      <<: *driver-opts
+      device: ${CONFIG_DIR}/loki/config
+  config-loki-data:
+    driver_opts:
+      <<: *driver-opts
+      device: ${CONFIG_DIR}/loki/data
+  config-onedev:
+    driver_opts:
+      <<: *driver-opts
+      device: ${CONFIG_DIR}/onedev
+  config-outline-db:
+    driver_opts:
+      <<: *driver-opts
+      device: ${CONFIG_DIR}/outline/db
+  config-outline-storage:
+    driver_opts:
+      <<: *driver-opts
+      device: ${CONFIG_DIR}/outline/storage
+  config-pocket:
+    driver_opts:
+      <<: *driver-opts
+      device: ${CONFIG_DIR}/pocket/images
+  config-pocket-db:
+    driver_opts:
+      <<: *driver-opts
+      device: ${CONFIG_DIR}/pocket/db
+  config-podgrab:
+    driver_opts:
+      <<: *driver-opts
+      device: ${CONFIG_DIR}/podgrab/config
+  config-podgrab-data:
+    driver_opts:
+      <<: *driver-opts
+      device: ${CONFIG_DIR}/podgrab/data
+  config-portainer:
+    driver_opts:
+      <<: *driver-opts
+      device: ${CONFIG_DIR}/portainer
+  config-prometheus:
+    driver_opts:
+      <<: *driver-opts
+      device: ${CONFIG_DIR}/prometheus
+  config-promtail:
+    driver_opts:
+      <<: *driver-opts
+      device: ${CONFIG_DIR}/promtail
+  config-prowlarr:
+    driver_opts:
+      <<: *driver-opts
+      device: ${CONFIG_DIR}/prowlarr
+  config-qbittorrent:
+    driver_opts:
+      <<: *driver-opts
+      device: ${CONFIG_DIR}/qbittorrent
+  config-radarr:
+    driver_opts:
+      <<: *driver-opts
+      device: ${CONFIG_DIR}/radarr
+  config-readarr:
+    driver_opts:
+      <<: *driver-opts
+      device: ${CONFIG_DIR}/readarr
+  config-scripts:
+    driver_opts:
+      <<: *driver-opts
+      device: ${CONFIG_DIR}/scripts
+  config-sonarr:
+    driver_opts:
+      <<: *driver-opts
+      device: ${CONFIG_DIR}/sonarr
+  config-syncthing:
+    driver_opts:
+      <<: *driver-opts
+      device: ${CONFIG_DIR}/syncthing
+  config-traefik:
+    driver_opts:
+      <<: *driver-opts
+      device: ${CONFIG_DIR}/traefik
+  config-unbound:
+    driver_opts:
+      <<: *driver-opts
+      device: ${CONFIG_DIR}/unbound
+  config-vaultwarden:
+    driver_opts:
+      <<: *driver-opts
+      device: ${CONFIG_DIR}/vaultwarden
+  config-vikunja:
+    driver_opts:
+      <<: *driver-opts
+      device: ${CONFIG_DIR}/vikunja
+  config-vikunja-db:
+    driver_opts:
+      <<: *driver-opts
+      device: ${CONFIG_DIR}/vikunja-db
+  downloads:
+    driver_opts:
+      <<: *driver-opts
+      device: ${DOWNLOAD_DIR}
+  media:
+    driver_opts:
+      <<: *driver-opts
+      device: ${DATA_DIR}
+  media-books:
+    driver_opts:
+      <<: *driver-opts
+      device: ${DATA_DIR}/Books
+  media-movies:
+    driver_opts:
+      <<: *driver-opts
+      device: ${DATA_DIR}/Movies
+  media-music:
+    driver_opts:
+      <<: *driver-opts
+      device: ${DATA_DIR}/Music
+  media-shows:
+    driver_opts:
+      <<: *driver-opts
+      device: ${DATA_DIR}/Television Shows
+  media-youtube:
+    driver_opts:
+      <<: *driver-opts
+      device: ${DATA_DIR}/Youtube
+  sync:
+    driver_opts:
+      <<: *driver-opts
+      device: ${SYNC_DIR}

@@ -1,0 +1,129 @@
+x-common-databases: &databases
+  todo-db:
+    image: lscr.io/linuxserver/mariadb
+    container_name: todo-db
+    <<: *common
+    volumes:
+      - config-vikunja-db:/config
+    environment:
+      <<: *env-vars
+      MYSQL_DATABASE: ${TODO_DATABASE}
+      MYSQL_USER: ${DATABASE_USERNAME}
+      MYSQL_PASSWORD: ${DATABASE_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${DATABASE_PASSWORD}
+    networks:
+      - internal
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          '/usr/bin/mysql --user=${DATABASE_USERNAME}
+          --password=${DATABASE_PASSWORD} --execute "SHOW DATABASES;"',
+        ]
+      interval: 3s
+      timeout: 1s
+      retries: 5
+    labels:
+      traefik.enable: false
+
+  wiki_redis:
+    image: redis
+    container_name: wiki-redis
+    <<: *common
+    networks:
+      - internal
+    command: ["redis-server"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 30s
+      retries: 3
+    labels:
+      traefik.enable: false
+
+  wiki_db:
+    image: postgres
+    container_name: wiki-db
+    <<: *common
+    networks:
+      - internal
+    volumes:
+      - config-outline-db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DATABASE_USERNAME}"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+    environment:
+      <<: *env-vars
+      POSTGRES_USER: ${DATABASE_USERNAME}
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD}
+      POSTGRES_DB: outline
+    labels:
+      traefik.enable: false
+
+  auth_db:
+    image: postgres
+    container_name: auth-db
+    <<: *common
+    networks:
+      - internal
+    volumes:
+      - config-auth-db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DATABASE_USERNAME}"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+    environment:
+      <<: *env-vars
+      POSTGRES_USER: ${DATABASE_USERNAME}
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD}
+      POSTGRES_DB: auth
+    labels:
+      traefik.enable: false
+
+  pocket_db:
+    image: postgres
+    container_name: pocket-db
+    <<: *common
+    networks:
+      - internal
+    volumes:
+      - config-pocket-db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DATABASE_USERNAME}"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+    environment:
+      <<: *env-vars
+      POSTGRES_USER: ${DATABASE_USERNAME}
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD}
+      POSTGRES_DB: wallabag
+    labels:
+      traefik.enable: false
+
+  minio:
+    image: minio/minio
+    container_name: minio
+    entrypoint: sh
+    command: -c 'minio server /data --console-address ":9001"'
+    <<: *common
+    volumes:
+      - config-outline-storage:/data
+    environment:
+      <<: *env-vars
+      MINIO_BROWSER_REDIRECT_URL: "https://minio.${DOMAIN}"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+    labels:
+      traefik.http.routers.minio.rule: Host(`minio.${DOMAIN}`)
+      traefik.http.services.minio.loadbalancer.server.port: 9001
+      traefik.http.routers.minio.entrypoints: websecure
+      traefik.http.routers.minio.tls: true
+      traefik.http.routers.minio.tls.certResolver: letsencrypt
+
