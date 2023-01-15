@@ -86,6 +86,10 @@ volumes:
     driver_opts:
       <<: *driver-opts
       device: ${CONFIG_DIR}/homeassistant
+  config-homebox-data:
+    driver_opts:
+      <<: *driver-opts
+      device: ${CONFIG_DIR}/homebox/data
   config-jellyfin:
     driver_opts:
       <<: *driver-opts
