@@ -33,6 +33,7 @@ x-common-admin: &admin
       - --providers.docker.watch=true
       - --providers.docker.exposedbydefault=true
       - --providers.docker.network=web
+      - --providers.file.directory=/config
     environment:
       <<: *env-vars
       CLOUDFLARE_DNS_API_TOKEN: ${CLOUDFLARE_DNS_API_TOKEN}

@@ -235,18 +235,14 @@ x-common-cloud: &cloud
   homeassistant:
     image: ghcr.io/home-assistant/home-assistant:stable
     container_name: homeassistant
-    <<: *common
+    <<: *logging
+    environment: *env-vars
+    network_mode: host
     volumes:
       - config-home-assistant:/config
       - /etc/localtime:/etc/localtime:ro
     labels:
-      traefik.http.routers.homeassistant.rule: Host(`home.${DOMAIN}`)
-      traefik.http.services.homeassistant.loadBalancer.server.port: 8123
-      traefik.http.routers.homeassistant.entrypoints: websecure
-      traefik.http.routers.homeassistant.tls: true
-      traefik.http.routers.homeassistant.tls.certResolver: letsencrypt
-      traefik.http.routers.homeassistant.middlewares: ha-headers
-      traefik.http.middlewares.ha-headers.headers.customrequestheaders.Connection: Upgrade
+      traefik.enable: false
 
   homebox:
     image: ghcr.io/hay-kot/homebox
