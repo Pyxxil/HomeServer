@@ -8,4 +8,4 @@ awk 1 docker-compose.common.yaml   \
     docker-compose.media.yaml      \
     docker-compose.metrics.yaml    \
     docker-compose.base.yaml       \
-    | docker compose -f - "$@"
+ | docker compose -f - "$@"

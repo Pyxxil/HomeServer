@@ -12,12 +12,12 @@ x-common-admin: &admin
       - --certificatesresolvers.letsencrypt.acme.dnschallenge.resolvers=1.1.1.1:53,8.8.8.8:53
       - --certificatesresolvers.letsencrypt.acme.email=${ADMIN_EMAIL}
       - --certificatesresolvers.letsencrypt.acme.storage=/config/acme.json
+      - --entryPoints.mailsecure.address=:465
       - --entrypoints.web.address=:80
       - --entrypoints.web.forwardedHeaders.insecure=false
       - --entrypoints.web.proxyProtocol.insecure=false
       - --entryPoints.web.forwardedHeaders.trustedIPs=10.0.0.0/8,172.0.0.0/8,192.168.0.0/16,fc00::/7,100.0.0.0/8
       - --entryPoints.web.proxyProtocol.trustedIPs=10.0.0.0/8,172.0.0.0/8,192.168.0.0/16,fc00::/7,100.0.0.0/8
-      - --experimental.http3=true
       - --entrypoints.websecure.address=:443
       - --entrypoints.websecure.http3
       - --entrypoints.websecure.http.tls.certResolver=letsencrypt
@@ -27,6 +27,7 @@ x-common-admin: &admin
       - --entryPoints.websecure.proxyProtocol.trustedIPs=10.0.0.0/8,172.0.0.0/8,192.168.0.0/16,fc00::/7,100.0.0.0/8
       - --entrypoints.websecure.forwardedHeaders.insecure=false
       - --entrypoints.websecure.proxyProtocol.insecure=false
+      - --experimental.http3=true
       - --ping=true
       - --metrics.prometheus=true
       - --providers.docker=true
@@ -100,6 +101,26 @@ x-common-admin: &admin
       traefik.http.middlewares.authelia.forwardauth.trustForwardHeader: true
       traefik.http.middlewares.authelia.forwardauth.authResponseHeaders: Remote-User,Remote-Groups,Remote-Name,Remote-Email
 
+  mailrise:
+    image: yoryan/mailrise
+    container_name: mailrise
+    restart: unless-stopped
+    command: "-vv /config/mailrise.conf"
+    volumes:
+      - config-mailrise:/config:ro
+    <<: *common
+    environment:
+      <<: *env-vars
+      AWS_URL: ses://${AWS_SES_URL}
+    ports:
+      - 465:465
+      - 8025:8025
+    labels:
+      traefik.tcp.routers.mailrise.rule: HostSNI(`${DOMAIN}`)
+      traefik.tcp.routers.mailrise.tls: true
+      traefik.tcp.routers.mailrise.tls.certresolver: letsencrypt
+      traefik.tcp.routers.mailrise.entrypoints: mailsecure
+
   diun:
     image: crazymax/diun
     container_name: diun
@@ -119,3 +140,4 @@ x-common-admin: &admin
       DIUN_NOTIF_DISCORD_MENTIONS: ${DISCORD_MENTIONS}
     labels:
       traefik.enable: false
+

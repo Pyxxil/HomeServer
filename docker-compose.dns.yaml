@@ -77,3 +77,4 @@ x-common-dns: &dns
       traefik.http.routers.adguard.entrypoints: websecure
       traefik.http.routers.adguard.tls: true
       traefik.http.routers.adguard.tls.certResolver: letsencrypt
+

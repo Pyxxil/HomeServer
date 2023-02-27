@@ -110,3 +110,4 @@ x-common-metrics: &metrics
       retries: 3
     labels:
       traefik.enable: false
+

@@ -114,6 +114,18 @@ volumes:
     driver_opts:
       <<: *driver-opts
       device: ${CONFIG_DIR}/loki/data
+  config-mailrise:
+    driver_opts:
+      <<: *driver-opts
+      device: ${CONFIG_DIR}/mailrise
+  config-mealie-data:
+    driver_opts:
+      <<: *driver-opts
+      device: ${CONFIG_DIR}/mealie/data
+  config-mealie-db:
+    driver_opts:
+      <<: *driver-opts
+      device: ${CONFIG_DIR}/mealie/db
   config-onedev:
     driver_opts:
       <<: *driver-opts
@@ -129,7 +141,7 @@ volumes:
   config-pocket:
     driver_opts:
       <<: *driver-opts
-      device: ${CONFIG_DIR}/pocket/images
+      device: ${CONFIG_DIR}/pocket/config
   config-pocket-db:
     driver_opts:
       <<: *driver-opts
@@ -194,6 +206,10 @@ volumes:
     driver_opts:
       <<: *driver-opts
       device: ${CONFIG_DIR}/vaultwarden
+  config-vaultwarden-db:
+    driver_opts:
+      <<: *driver-opts
+      device: ${CONFIG_DIR}/vaultwarden-db
   config-vikunja:
     driver_opts:
       <<: *driver-opts
@@ -234,3 +250,4 @@ volumes:
     driver_opts:
       <<: *driver-opts
       device: ${SYNC_DIR}
+

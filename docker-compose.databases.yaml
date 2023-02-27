@@ -1,28 +1,43 @@
 x-common-databases: &databases
   todo-db:
-    image: lscr.io/linuxserver/mariadb
+    image: postgres
     container_name: todo-db
     <<: *common
-    volumes:
-      - config-vikunja-db:/config
-    environment:
-      <<: *env-vars
-      MYSQL_DATABASE: ${TODO_DATABASE}
-      MYSQL_USER: ${DATABASE_USERNAME}
-      MYSQL_PASSWORD: ${DATABASE_PASSWORD}
-      MYSQL_ROOT_PASSWORD: ${DATABASE_PASSWORD}
     networks:
       - internal
+    volumes:
+      - config-vikunja-db:/var/lib/postgresql/data
     healthcheck:
-      test:
-        [
-          "CMD-SHELL",
-          '/usr/bin/mysql --user=${DATABASE_USERNAME}
-          --password=${DATABASE_PASSWORD} --execute "SHOW DATABASES;"',
-        ]
-      interval: 3s
-      timeout: 1s
-      retries: 5
+      test: ["CMD-SHELL", "pg_isready -d ${TODO_DATABASE}"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+    environment:
+      <<: *env-vars
+      POSTGRES_USER: ${DATABASE_USERNAME}
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD}
+      POSTGRES_DB: ${TODO_DATABASE}
+    labels:
+      traefik.enable: false
+
+  vaultwarden-db:
+    image: postgres
+    container_name: vaultwarden-db
+    <<: *common
+    networks:
+      - internal
+    volumes:
+      - config-vaultwarden-db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -d vaultwarden"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+    environment:
+      <<: *env-vars
+      POSTGRES_USER: ${DATABASE_USERNAME}
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD}
+      POSTGRES_DB: vaultwarden
     labels:
       traefik.enable: false
 
@@ -50,7 +65,7 @@ x-common-databases: &databases
     volumes:
       - config-outline-db:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DATABASE_USERNAME}"]
+      test: ["CMD-SHELL", "pg_isready -d outline"]
       interval: 30s
       timeout: 20s
       retries: 3
@@ -71,7 +86,7 @@ x-common-databases: &databases
     volumes:
       - config-auth-db:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DATABASE_USERNAME}"]
+      test: ["CMD-SHELL", "pg_isready -d auth"]
       interval: 30s
       timeout: 20s
       retries: 3
@@ -92,7 +107,7 @@ x-common-databases: &databases
     volumes:
       - config-pocket-db:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DATABASE_USERNAME}"]
+      test: ["CMD-SHELL", "pg_isready -d pocket"]
       interval: 30s
       timeout: 20s
       retries: 3
@@ -100,7 +115,28 @@ x-common-databases: &databases
       <<: *env-vars
       POSTGRES_USER: ${DATABASE_USERNAME}
       POSTGRES_PASSWORD: ${DATABASE_PASSWORD}
-      POSTGRES_DB: wallabag
+      POSTGRES_DB: pocket
+    labels:
+      traefik.enable: false
+
+  mealie-db:
+    image: postgres
+    container_name: mealie-db
+    <<: *common
+    networks:
+      - internal
+    volumes:
+      - config-mealie-db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -d mealie"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+    environment:
+      <<: *env-vars
+      POSTGRES_USER: ${DATABASE_USERNAME}
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD}
+      POSTGRES_DB: mealie
     labels:
       traefik.enable: false
 
@@ -115,6 +151,7 @@ x-common-databases: &databases
     environment:
       <<: *env-vars
       MINIO_BROWSER_REDIRECT_URL: "https://minio.${DOMAIN}"
+      MINIO_PROMETHEUS_AUTH_TYPE: "public"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
       interval: 30s

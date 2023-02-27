@@ -7,11 +7,19 @@ x-common-cloud: &cloud
       <<: *env-vars
       VIKUNJA_DATABASE_HOST: todo-db
       VIKUNJA_DATABASE_PASSWORD: ${DATABASE_PASSWORD}
-      VIKUNJA_DATABASE_TYPE: mysql
+      VIKUNJA_DATABASE_TYPE: postgres
       VIKUNJA_DATABASE_USER: ${DATABASE_USERNAME}
       VIKUNJA_DATABASE_DATABASE: ${TODO_DATABASE}
       VIKUNJA_SERVICE_JWTSECRET: ${JWT_SECRET}
       VIKUNJA_SERVICE_FRONTENDURL: https://todo.${DOMAIN}/
+      VIKUNJA_MAILER_ENABLED: true
+      VIKUNJA_MAILER_HOST: ${VAULTWARDEN_SMTP_HOST}
+      VIKUNJA_MAILER_USERNAME: ${VAULTWARDEN_SMTP_USER}
+      VIKUNJA_MAILER_PASSWORD: ${VAULTWARDEN_SMTP_PASS}
+      VIKUNJA_MAILER_FROMEMAIL: todo@${DOMAIN}
+      VIKUNJA_MAILER_PORT: 25
+      VIKUNJA_LOG_LEVEL: DEBUG
+      VIKUNJA_METRICS_ENABLED: true
     volumes:
       - config-vikunja:/app/vikunja/files
     depends_on:
@@ -127,12 +135,19 @@ x-common-cloud: &cloud
     <<: *common
     volumes:
       - config-vaultwarden:/data
+    depends_on:
+      - vaultwarden-db
     environment:
       <<: *env-vars
       DOMAIN: "https://vault.${DOMAIN}"
       ADMIN_TOKEN: ${VAULTWARDEN_TOKEN}
       WEBSOCKET_ENABLED: true
       ROCKET_PORT: 8800
+      SMTP_PORT: 25
+      SMTP_SECURITY: starttls
+      SMTP_HOST: ${VAULTWARDEN_SMTP_HOST}
+      SMTP_FROM: vault@${DOMAIN}
+      DATABASE_URL: postgresql://${DATABASE_USERNAME}:${DATABASE_PASSWORD}@vaultwarden-db:5432/vaultwarden
     labels:
       traefik.http.routers.vaultwarden-ui.rule: Host(`vault.${DOMAIN}`)
       traefik.http.services.vaultwarden-ui.loadbalancer.server.port: 8800
@@ -170,50 +185,40 @@ x-common-cloud: &cloud
       traefik.http.routers.freshrss.tls: true
       traefik.http.routers.freshrss.tls.certResolver: letsencrypt
 
-  wallabag:
-    image: wallabag/wallabag
+  pocket:
+    image: sissbruecker/linkding
     container_name: pocket
     <<: *common
     environment:
       <<: *env-vars
-      POSTGRES_USER: ${DATABASE_USERNAME}
-      POSTGRES_PASSWORD: ${DATABASE_PASSWORD}
-      SYMFONY__ENV__DATABASE_DRIVER: pdo_pgsql
-      SYMFONY__ENV__DATABASE_HOST: pocket_db
-      SYMFONY__ENV__DATABASE_PORT: 5432
-      SYMFONY__ENV__DATABASE_NAME: wallabag
-      SYMFONY__ENV__DATABASE_USER: ${DATABASE_USERNAME}
-      SYMFONY__ENV__DATABASE_PASSWORD: ${DATABASE_PASSWORD}
-      SYMFONY__ENV__DOMAIN_NAME: https://pocket.${DOMAIN}
-      SYMFONY__ENV__SERVER_NAME: Pocket
+      LD_DB_ENGINE: postgres
+      LD_DB_USER: ${DATABASE_USERNAME}
+      LD_DB_PASSWORD: ${DATABASE_PASSWORD}
+      LD_DB_DATABASE: pocket
+      LD_DB_HOST: pocket-db
+      LD_DB_PORT: 5432
     volumes:
-      - config-pocket:/var/www/wallabag/web/assets/images
+      - config-pocket:/etc/linkding/data
     healthcheck:
-      test:
-        [
-          "CMD",
-          "wget",
-          "--no-verbose",
-          "--tries=1",
-          "--spider",
-          "http://localhost",
-        ]
+      test: ["CMD-SHELL", "curl --fail localhost:9090"]
       interval: 1m
       timeout: 3s
     depends_on:
       - pocket_db
+    ulimits:
+      nofile: 1048576
     labels:
       traefik.http.routers.pocket.rule: Host(`pocket.${DOMAIN}`)
       traefik.http.routers.pocket.entrypoints: websecure
+      traefik.http.services.pocket.loadbalancer.server.port: 9090
       traefik.http.routers.pocket.tls: true
       traefik.http.routers.pocket.tls.certResolver: letsencrypt
 
   wiki:
     image: outlinewiki/outline
     container_name: wiki
-    command:
-      sh -c "yarn sequelize:migrate --env production-ssl-disabled && yarn start"
     env_file: ${CONFIG_DIR}/outline/config.env
+    command: yarn db:migrate --env production-ssl-disabled && yarn start
     <<: *common
     depends_on:
       - wiki_db
@@ -256,3 +261,33 @@ x-common-cloud: &cloud
       traefik.http.routers.homebox.entrypoints: websecure
       traefik.http.routers.homebox.tls: true
       traefik.http.routers.homebox.tls.certResolver: letsencrypt
+
+  mealie:
+    container_name: mealie
+    image: hkotel/mealie:latest
+    <<: *common
+    depends_on:
+      - mealie-db
+    environment:
+      <<: *env-vars
+      DB_ENGINE: postgres
+      POSTGRES_USER: ${DATABASE_USERNAME}
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD}
+      POSTGRES_SERVER: mealie-db
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: mealie
+      RECIPE_PUBLIC: 'true'
+      RECIPE_SHOW_NUTRITION: 'true'
+      RECIPE_SHOW_ASSETS: 'true'
+      RECIPE_LANDSCAPE_VIEW: 'true'
+      RECIPE_DISABLE_COMMENTS: 'false'
+      RECIPE_DISABLE_AMOUNT: 'false'
+    volumes:
+      - config-mealie-data:/app/data
+    labels:
+      traefik.http.routers.mealie.rule: Host(`meals.${DOMAIN}`)
+      traefik.http.services.mealie.loadbalancer.server.port: 80
+      traefik.http.routers.mealie.entrypoints: websecure
+      traefik.http.routers.mealie.tls: true
+      traefik.http.routers.mealie.tls.certResolver: letsencrypt
+

@@ -40,3 +40,4 @@ x-common-books: &books
       traefik.http.routers.read.entrypoints: websecure
       traefik.http.routers.read.tls: true
       traefik.http.routers.read.tls.certResolver: letsencrypt
+

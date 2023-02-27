@@ -198,7 +198,6 @@ x-common-media: &media
       - /dev/dri/card0:/dev/dri/card0
     ports:
       - 7359:7359/udp
-      - 1900:1900/udp
     healthcheck:
       test: ["CMD-SHELL", "curl --fail localhost:8096"]
       interval: 1m30s
