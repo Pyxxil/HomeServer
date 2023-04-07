@@ -12,7 +12,6 @@ x-common-admin: &admin
       - --certificatesresolvers.letsencrypt.acme.dnschallenge.resolvers=1.1.1.1:53,8.8.8.8:53
       - --certificatesresolvers.letsencrypt.acme.email=${ADMIN_EMAIL}
       - --certificatesresolvers.letsencrypt.acme.storage=/config/acme.json
-      - --entryPoints.mailsecure.address=:465
       - --entrypoints.web.address=:80
       - --entrypoints.web.forwardedHeaders.insecure=false
       - --entrypoints.web.proxyProtocol.insecure=false
@@ -28,6 +27,7 @@ x-common-admin: &admin
       - --entrypoints.websecure.forwardedHeaders.insecure=false
       - --entrypoints.websecure.proxyProtocol.insecure=false
       - --experimental.http3=true
+      - --log.level=debug
       - --ping=true
       - --metrics.prometheus=true
       - --providers.docker=true
@@ -88,9 +88,9 @@ x-common-admin: &admin
   auth:
     image: authelia/authelia
     container_name: authelia
+    <<: *common
     volumes:
       - config-authelia:/config
-    <<: *common
     labels:
       traefik.http.routers.auth.rule: Host(`auth.${DOMAIN}`)
       traefik.http.services.auth.loadbalancer.server.port: 9091
@@ -119,7 +119,7 @@ x-common-admin: &admin
       traefik.tcp.routers.mailrise.rule: HostSNI(`${DOMAIN}`)
       traefik.tcp.routers.mailrise.tls: true
       traefik.tcp.routers.mailrise.tls.certresolver: letsencrypt
-      traefik.tcp.routers.mailrise.entrypoints: mailsecure
+      traefik.tcp.routers.mailrise.entrypoints: websecure
 
   diun:
     image: crazymax/diun

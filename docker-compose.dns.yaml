@@ -40,6 +40,35 @@ x-common-dns: &dns
     labels:
       traefik.enable: false
 
+  blackhole:
+    container_name: blackhole
+    image: ghcr.io/pyxxil/blackhole
+    <<: *common
+    restart: always
+    depends_on:
+      - unbound
+      - dnscrypt
+    dns:
+      - 10.2.0.100
+      - 10.2.0.150
+      - 10.2.0.200
+    networks:
+      internal:
+      web:
+      private_network:
+        ipv4_address: 10.2.0.50
+    volumes:
+      - config-blackhole:/config
+    ports:
+      - 5001:5000
+    labels:
+      traefik.http.routers.blackhole.rule: Host(`blackhole.${DOMAIN}`)
+      traefik.http.services.blackhole.loadbalancer.server.port: 3000
+      traefik.http.routers.blackhole.entrypoints: websecure
+      traefik.http.routers.blackhole.tls: true
+      traefik.http.routers.blackhole.tls.certResolver: letsencrypt
+
+
   adguard:
     container_name: adguard
     image: adguard/adguardhome

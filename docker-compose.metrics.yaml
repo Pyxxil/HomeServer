@@ -35,7 +35,8 @@ x-common-metrics: &metrics
     volumes:
       - config-grafana:/etc/grafana
       - config-grafana-data:/var/lib/grafana
-      - config-grafana-home:/usr/share/grafana
+    ports:
+      - 3001:3000
     healthcheck:
       test: ["CMD-SHELL", "wget --spider http://localhost:3000 || exit 1"]
       interval: 10s

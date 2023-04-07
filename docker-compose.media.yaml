@@ -118,6 +118,15 @@ x-common-media: &media
       traefik.http.routers.prowlarr.tls: true
       traefik.http.routers.prowlarr.tls.certResolver: letsencrypt
 
+  flaresolverr:
+    image: ghcr.io/flaresolverr/flaresolverr:latest
+    container_name: flaresolverr
+    <<: *common
+    ports:
+      - 8191:8191
+    labels:
+      traefik.enable: false
+
   qbittorrent:
     image: lscr.io/linuxserver/qbittorrent
     container_name: qbittorrent
@@ -191,8 +200,10 @@ x-common-media: &media
       - media-shows:/Television Shows
       - media-music:/Music
       - media-youtube:/Youtube
+      - media-books:/Books
     group_add:
-      - video
+      - "989" # getent group render | cut -d: -f3
+      - "986" # getent group video | cut -d: -f3
     devices:
       - /dev/dri/renderD128:/dev/dri/renderD128
       - /dev/dri/card0:/dev/dri/card0

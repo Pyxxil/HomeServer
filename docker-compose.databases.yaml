@@ -1,14 +1,15 @@
 x-common-databases: &databases
-  todo-db:
+  postgres:
     image: postgres
-    container_name: todo-db
+    container_name: postgres
     <<: *common
     networks:
       - internal
     volumes:
-      - config-vikunja-db:/var/lib/postgresql/data
+      - config-postgres:/var/lib/postgresql/data
+      - ./postgres:/docker-entrypoint-initdb.d
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -d ${TODO_DATABASE}"]
+      test: ["CMD-SHELL", "pg_isready -U ${DATABASE_USERNAME} -d ${TODO_DATABASE}"]
       interval: 30s
       timeout: 20s
       retries: 3
@@ -16,32 +17,11 @@ x-common-databases: &databases
       <<: *env-vars
       POSTGRES_USER: ${DATABASE_USERNAME}
       POSTGRES_PASSWORD: ${DATABASE_PASSWORD}
-      POSTGRES_DB: ${TODO_DATABASE}
+      POSTGRES_MULTIPLE_DATABASES: vikunja,vaultwarden,outline,auth,pocket,mealie,firefly
     labels:
       traefik.enable: false
 
-  vaultwarden-db:
-    image: postgres
-    container_name: vaultwarden-db
-    <<: *common
-    networks:
-      - internal
-    volumes:
-      - config-vaultwarden-db:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -d vaultwarden"]
-      interval: 30s
-      timeout: 20s
-      retries: 3
-    environment:
-      <<: *env-vars
-      POSTGRES_USER: ${DATABASE_USERNAME}
-      POSTGRES_PASSWORD: ${DATABASE_PASSWORD}
-      POSTGRES_DB: vaultwarden
-    labels:
-      traefik.enable: false
-
-  wiki_redis:
+  wiki-redis:
     image: redis
     container_name: wiki-redis
     <<: *common
@@ -53,90 +33,6 @@ x-common-databases: &databases
       interval: 10s
       timeout: 30s
       retries: 3
-    labels:
-      traefik.enable: false
-
-  wiki_db:
-    image: postgres
-    container_name: wiki-db
-    <<: *common
-    networks:
-      - internal
-    volumes:
-      - config-outline-db:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -d outline"]
-      interval: 30s
-      timeout: 20s
-      retries: 3
-    environment:
-      <<: *env-vars
-      POSTGRES_USER: ${DATABASE_USERNAME}
-      POSTGRES_PASSWORD: ${DATABASE_PASSWORD}
-      POSTGRES_DB: outline
-    labels:
-      traefik.enable: false
-
-  auth_db:
-    image: postgres
-    container_name: auth-db
-    <<: *common
-    networks:
-      - internal
-    volumes:
-      - config-auth-db:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -d auth"]
-      interval: 30s
-      timeout: 20s
-      retries: 3
-    environment:
-      <<: *env-vars
-      POSTGRES_USER: ${DATABASE_USERNAME}
-      POSTGRES_PASSWORD: ${DATABASE_PASSWORD}
-      POSTGRES_DB: auth
-    labels:
-      traefik.enable: false
-
-  pocket_db:
-    image: postgres
-    container_name: pocket-db
-    <<: *common
-    networks:
-      - internal
-    volumes:
-      - config-pocket-db:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -d pocket"]
-      interval: 30s
-      timeout: 20s
-      retries: 3
-    environment:
-      <<: *env-vars
-      POSTGRES_USER: ${DATABASE_USERNAME}
-      POSTGRES_PASSWORD: ${DATABASE_PASSWORD}
-      POSTGRES_DB: pocket
-    labels:
-      traefik.enable: false
-
-  mealie-db:
-    image: postgres
-    container_name: mealie-db
-    <<: *common
-    networks:
-      - internal
-    volumes:
-      - config-mealie-db:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -d mealie"]
-      interval: 30s
-      timeout: 20s
-      retries: 3
-    environment:
-      <<: *env-vars
-      POSTGRES_USER: ${DATABASE_USERNAME}
-      POSTGRES_PASSWORD: ${DATABASE_PASSWORD}
-      POSTGRES_DB: mealie
     labels:
       traefik.enable: false
 

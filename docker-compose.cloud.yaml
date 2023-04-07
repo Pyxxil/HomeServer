@@ -5,7 +5,7 @@ x-common-cloud: &cloud
     <<: *common
     environment:
       <<: *env-vars
-      VIKUNJA_DATABASE_HOST: todo-db
+      VIKUNJA_DATABASE_HOST: postgres
       VIKUNJA_DATABASE_PASSWORD: ${DATABASE_PASSWORD}
       VIKUNJA_DATABASE_TYPE: postgres
       VIKUNJA_DATABASE_USER: ${DATABASE_USERNAME}
@@ -21,9 +21,10 @@ x-common-cloud: &cloud
       VIKUNJA_LOG_LEVEL: DEBUG
       VIKUNJA_METRICS_ENABLED: true
     volumes:
+      - config-vikunja-conf:/etc/vikunja
       - config-vikunja:/app/vikunja/files
     depends_on:
-      - todo-db
+      - postgres
     healthcheck:
       test:
         [
@@ -52,11 +53,11 @@ x-common-cloud: &cloud
     <<: *common
     depends_on:
       - todo-api
-    ports:
-      - 3031:3000
     environment:
       <<: *env-vars
       VIKUNJA_API_URL: https://todo.${DOMAIN}/api/v1
+    ports:
+      - 3002:3000
     healthcheck:
       test: ["CMD-SHELL", "curl --fail localhost"]
       interval: 1m30s
@@ -68,44 +69,6 @@ x-common-cloud: &cloud
       traefik.http.routers.todo.entrypoints: websecure
       traefik.http.routers.todo.tls: true
       traefik.http.routers.todo.tls.certResolver: letsencrypt
-
-  code-server:
-    image: lscr.io/linuxserver/openvscode-server:1.74.2
-    container_name: code-server
-    <<: *common
-    environment:
-      <<: *env-vars
-      SUDO_PASSWORD: ${CODE_SUDO_PASSWORD}
-      PROXY_DOMAIN: dev.${DOMAIN}
-    volumes:
-      - config-code:/config
-      - sync:/sync
-    labels:
-      traefik.http.routers.code.rule: Host(`dev.${DOMAIN}`)
-      traefik.http.services.code.loadBalancer.server.port: 3000
-      traefik.http.routers.code.entrypoints: websecure
-      traefik.http.routers.code.tls: true
-      traefik.http.routers.code.tls.certResolver: letsencrypt
-
-  onedev:
-    image: 1dev/server
-    container_name: git
-    <<: *common
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-      - config-onedev:/opt/onedev
-    healthcheck:
-      test: ["CMD-SHELL", "curl --fail localhost:6610"]
-      interval: 1m30s
-      timeout: 30s
-      retries: 5
-      start_period: 30s
-    labels:
-      traefik.http.routers.git.rule: Host(`git.${DOMAIN}`)
-      traefik.http.routers.git.entrypoints: websecure
-      traefik.http.services.git.loadBalancer.server.port: 6610
-      traefik.http.routers.git.tls: true
-      traefik.http.routers.git.tls.certResolver: letsencrypt
 
   sync:
     container_name: sync
@@ -136,7 +99,7 @@ x-common-cloud: &cloud
     volumes:
       - config-vaultwarden:/data
     depends_on:
-      - vaultwarden-db
+      - postgres
     environment:
       <<: *env-vars
       DOMAIN: "https://vault.${DOMAIN}"
@@ -147,7 +110,7 @@ x-common-cloud: &cloud
       SMTP_SECURITY: starttls
       SMTP_HOST: ${VAULTWARDEN_SMTP_HOST}
       SMTP_FROM: vault@${DOMAIN}
-      DATABASE_URL: postgresql://${DATABASE_USERNAME}:${DATABASE_PASSWORD}@vaultwarden-db:5432/vaultwarden
+      DATABASE_URL: postgresql://${DATABASE_USERNAME}:${DATABASE_PASSWORD}@postgres:5432/vaultwarden
     labels:
       traefik.http.routers.vaultwarden-ui.rule: Host(`vault.${DOMAIN}`)
       traefik.http.services.vaultwarden-ui.loadbalancer.server.port: 8800
@@ -195,7 +158,7 @@ x-common-cloud: &cloud
       LD_DB_USER: ${DATABASE_USERNAME}
       LD_DB_PASSWORD: ${DATABASE_PASSWORD}
       LD_DB_DATABASE: pocket
-      LD_DB_HOST: pocket-db
+      LD_DB_HOST: postgres
       LD_DB_PORT: 5432
     volumes:
       - config-pocket:/etc/linkding/data
@@ -204,7 +167,7 @@ x-common-cloud: &cloud
       interval: 1m
       timeout: 3s
     depends_on:
-      - pocket_db
+      - postgres
     ulimits:
       nofile: 1048576
     labels:
@@ -218,11 +181,10 @@ x-common-cloud: &cloud
     image: outlinewiki/outline
     container_name: wiki
     env_file: ${CONFIG_DIR}/outline/config.env
-    command: yarn db:migrate --env production-ssl-disabled && yarn start
     <<: *common
     depends_on:
-      - wiki_db
-      - wiki_redis
+      - postgres
+      - wiki-redis
       - minio
     healthcheck:
       test: ["CMD-SHELL", "/bin/netstat -pant | /bin/grep ':3000'"]
@@ -267,13 +229,13 @@ x-common-cloud: &cloud
     image: hkotel/mealie:latest
     <<: *common
     depends_on:
-      - mealie-db
+      - postgres
     environment:
       <<: *env-vars
       DB_ENGINE: postgres
       POSTGRES_USER: ${DATABASE_USERNAME}
       POSTGRES_PASSWORD: ${DATABASE_PASSWORD}
-      POSTGRES_SERVER: mealie-db
+      POSTGRES_SERVER: postgres
       POSTGRES_PORT: 5432
       POSTGRES_DB: mealie
       RECIPE_PUBLIC: 'true'
@@ -290,4 +252,59 @@ x-common-cloud: &cloud
       traefik.http.routers.mealie.entrypoints: websecure
       traefik.http.routers.mealie.tls: true
       traefik.http.routers.mealie.tls.certResolver: letsencrypt
+
+  firefly:
+    container_name: firefly
+    image: fireflyiii/core
+    <<: *common
+    depends_on:
+      - postgres
+    environment:
+      <<: *env-vars
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_CONNECTION: pgsql
+      DB_DATABASE: firefly
+      DB_USERNAME: ${DATABASE_USERNAME}
+      DB_PASSWORD: ${DATABASE_PASSWORD}
+      APP_KEY: ${FIREFLY_APP_KEY}
+      CACHE_DRIVER: redis
+      SESSION_DRIVER: redis
+      REDIS_HOST: wiki-redis
+      REDIS_PORT: 6379
+      TRUSTED_PROXIES: "**"
+      APP_URL: "https://finances.${DOMAIN}"
+      STATIC_CRON_TOKEN: ${FIREFLY_APP_KEY}
+    volumes:
+      - config-firefly:/var/www/html/storage/upload
+    labels:
+      traefik.http.routers.firefly.rule: Host(`finances.${DOMAIN}`)
+      traefik.http.services.firefly.loadbalancer.server.port: 8080
+      traefik.http.routers.firefly.entrypoints: websecure
+      traefik.http.routers.firefly.tls: true
+      traefik.http.routers.firefly.tls.certResolver: letsencrypt
+      traefik.http.routers.firefly.middlewares: firefly-headers
+      traefik.http.middlewares.firefly-headers.headers.customrequestheaders.X-Forwarded-Proto: https
+
+  firefly-cron:
+    image: alpine
+    container_name: firefly-cron
+    command: sh -c "echo \"0 3 * * * wget -qO- http://firefly:8080/api/v1/cron/${FIREFLY_APP_KEY}\" | crontab - && crond -f -L /dev/stdout"
+    <<: *common
+    labels:
+      traefik.enable: false
+
+  wikipedia:
+    container_name: wikipedia
+    image: ghcr.io/kiwix/kiwix-serve
+    <<: *common
+    command: "*"
+    volumes:
+      - media-wikipedia:/data
+    labels:
+      traefik.http.routers.wikipedia.rule: Host(`wikipedia.${DOMAIN}`)
+      traefik.http.services.wikipedia.loadbalancer.server.port: 8080
+      traefik.http.routers.wikipedia.entrypoints: websecure
+      traefik.http.routers.wikipedia.tls: true
+      traefik.http.routers.wikipedia.tls.certResolver: letsencrypt
 
