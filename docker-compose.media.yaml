@@ -249,3 +249,22 @@ x-common-media: &media
       traefik.http.routers.podgrab.tls: true
       traefik.http.routers.podgrab.tls.certResolver: letsencrypt
 
+  calibre:
+    container_name: calibre
+    image: lscr.io/linuxserver/calibre
+    <<: *common
+    volumes:
+      - media-books:/config
+    healthcheck:
+      test: ["CMD-SHELL", "curl --fail localhost:8080"]
+      interval: 1m30s
+      timeout: 30s
+      retries: 5
+      start_period: 30s
+    labels:
+      traefik.http.routers.calibre.rule: Host(`calibre.${DOMAIN}`)
+      traefik.http.services.calibre.loadBalancer.server.port: 8080
+      traefik.http.routers.calibre.entrypoints: websecure
+      traefik.http.routers.calibre.tls: true
+      traefik.http.routers.calibre.tls.certResolver: letsencrypt
+

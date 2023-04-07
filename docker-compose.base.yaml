@@ -5,6 +5,5 @@ services:
   <<: *dns
   <<: *cloud
   <<: *media
-  <<: *books
   <<: *databases
 

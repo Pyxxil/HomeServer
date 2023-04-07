@@ -22,6 +22,7 @@ x-common-metrics: &metrics
       traefik.http.services.prometheus.loadbalancer.server.port: 9090
       traefik.http.routers.prometheus.tls: true
       traefik.http.routers.prometheus.tls.certResolver: letsencrypt
+      traefik.http.routers.prometheus.middlewares: authelia
       traefik.backend: prometheus
 
   grafana:
