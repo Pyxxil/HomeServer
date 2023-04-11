@@ -12,14 +12,19 @@ x-common-cloud: &cloud
       VIKUNJA_DATABASE_DATABASE: ${TODO_DATABASE}
       VIKUNJA_SERVICE_JWTSECRET: ${JWT_SECRET}
       VIKUNJA_SERVICE_FRONTENDURL: https://todo.${DOMAIN}/
+      VIKUNJA_SERVICE_TIMEZONE: ${TIMEZONE}
       VIKUNJA_MAILER_ENABLED: true
-      VIKUNJA_MAILER_HOST: ${VAULTWARDEN_SMTP_HOST}
-      VIKUNJA_MAILER_USERNAME: ${VAULTWARDEN_SMTP_USER}
-      VIKUNJA_MAILER_PASSWORD: ${VAULTWARDEN_SMTP_PASS}
+      VIKUNJA_MAILER_HOST: ${SMTP_HOST}
+      VIKUNJA_MAILER_USERNAME: ${SMTP_USER}
+      VIKUNJA_MAILER_PASSWORD: ${SMTP_PASS}
       VIKUNJA_MAILER_FROMEMAIL: todo@${DOMAIN}
       VIKUNJA_MAILER_PORT: 25
       VIKUNJA_LOG_LEVEL: DEBUG
       VIKUNJA_METRICS_ENABLED: true
+      VIKUNJA_LOG_EVENTS: stdout
+      VIKUNJA_LOG_EVENTSLEVEL: info
+      VIKUNJA_LOG_MAIL: stdout
+      VIKUNJA_LOG_MAILLEVEL: info
     volumes:
       - config-vikunja-conf:/etc/vikunja
       - config-vikunja:/app/vikunja/files
@@ -108,7 +113,7 @@ x-common-cloud: &cloud
       ROCKET_PORT: 8800
       SMTP_PORT: 25
       SMTP_SECURITY: starttls
-      SMTP_HOST: ${VAULTWARDEN_SMTP_HOST}
+      SMTP_HOST: ${SMTP_HOST}
       SMTP_FROM: vault@${DOMAIN}
       DATABASE_URL: postgresql://${DATABASE_USERNAME}:${DATABASE_PASSWORD}@postgres:5432/vaultwarden
     labels:
@@ -184,7 +189,7 @@ x-common-cloud: &cloud
     <<: *common
     depends_on:
       - postgres
-      - wiki-redis
+      - redis
       - minio
     healthcheck:
       test: ["CMD-SHELL", "/bin/netstat -pant | /bin/grep ':3000'"]
@@ -254,8 +259,8 @@ x-common-cloud: &cloud
       traefik.http.routers.mealie.tls.certResolver: letsencrypt
 
   firefly:
-    container_name: firefly
     image: fireflyiii/core
+    container_name: firefly
     <<: *common
     depends_on:
       - postgres
@@ -270,11 +275,14 @@ x-common-cloud: &cloud
       APP_KEY: ${FIREFLY_APP_KEY}
       CACHE_DRIVER: redis
       SESSION_DRIVER: redis
-      REDIS_HOST: wiki-redis
+      REDIS_HOST: redis
       REDIS_PORT: 6379
       TRUSTED_PROXIES: "**"
       APP_URL: "https://finances.${DOMAIN}"
       STATIC_CRON_TOKEN: ${FIREFLY_APP_KEY}
+      AUTHENTICATION_GUARD: remote_user_guard
+      AUTHENTICATION_GUARD_HEADER: HTTP_REMOTE_USER
+      AUTHENTICATION_GUARD_EMAIL: Remote-Email
     volumes:
       - config-firefly:/var/www/html/storage/upload
     labels:
@@ -283,7 +291,7 @@ x-common-cloud: &cloud
       traefik.http.routers.firefly.entrypoints: websecure
       traefik.http.routers.firefly.tls: true
       traefik.http.routers.firefly.tls.certResolver: letsencrypt
-      traefik.http.routers.firefly.middlewares: firefly-headers
+      traefik.http.routers.firefly.middlewares: firefly-headers,authelia
       traefik.http.middlewares.firefly-headers.headers.customrequestheaders.X-Forwarded-Proto: https
 
   firefly-cron:

@@ -21,9 +21,9 @@ x-common-databases: &databases
     labels:
       traefik.enable: false
 
-  wiki-redis:
+  redis:
     image: redis
-    container_name: wiki-redis
+    container_name: redis
     <<: *common
     networks:
       - internal

@@ -89,6 +89,9 @@ x-common-admin: &admin
     image: authelia/authelia
     container_name: authelia
     <<: *common
+    depends_on:
+      - ldap
+      - wiki
     volumes:
       - config-authelia:/config
     labels:
@@ -100,6 +103,59 @@ x-common-admin: &admin
       traefik.http.middlewares.authelia.forwardauth.address: http://authelia:9091/api/verify?rd=https://auth.${DOMAIN}
       traefik.http.middlewares.authelia.forwardauth.trustForwardHeader: true
       traefik.http.middlewares.authelia.forwardauth.authResponseHeaders: Remote-User,Remote-Groups,Remote-Name,Remote-Email
+
+  ldap:
+    image: osixia/openldap
+    container_name: ldap
+    <<: *common
+    volumes:
+      - config-ldap-db:/var/lib/ldap
+      - config-ldap:/etc/ldap/slapd.d
+    expose:
+      - 389
+      - 636
+    environment:
+      <<: *env-vars
+      LDAP_ORGANISATION: ${ORGANISATION}
+      LDAP_DOMAIN: ${DOMAIN}
+      LDAP_BASE_DN: dc=${DC_DOMAIN},dc=${TLD}
+      LDAP_RFC2307BIS_SCHEMA: true
+      LDAP_ADMIN_PASSWORD: ${LDAP_PASSWORD}
+      LDAP_READONLY_USER: false
+    labels:
+      traefik.enable: false
+
+  ldap-user-manager:
+    image: wheelybird/ldap-user-manager
+    container_name: ldap-user-manager
+    <<: *common
+    depends_on:
+      - ldap
+    environment:
+      <<: *env-vars
+      SERVER_HOSTNAME: https://ldap.${DOMAIN}
+      ORGANISATION_NAME: ${ORGANISATION}
+      LDAP_URI: "ldap://ldap"
+      LDAP_BASE_DN: dc=${DC_DOMAIN},dc=${TLD}
+      LDAP_ADMINS_GROUP: "admins"
+      LDAP_ADMIN_BIND_DN: "cn=admin,dc=${DC_DOMAIN},dc=${TLD}"
+      LDAP_ADMIN_BIND_PWD: ${LDAP_PASSWORD}
+      LDAP_USES_NIS_SCHEMA: false
+      LDAP_REQUIRE_STARTTLS: false
+      LDAP_DEBUG: true
+      NO_HTTPS: true
+      SMTP_HOSTNAME: ${SMTP_HOST}
+      SMTP_HOST_PORT: 25
+      SMTP_USERNAME: ${SMTP_USER}
+      SMTP_PASSWORD: ${SMTP_PASS}
+      EMAIL_FROM_ADDRESS: account@${DOMAIN}
+      EMAIL_DOMAIN: ${DOMAIN}
+    labels:
+      traefik.http.routers.ldap.rule: Host(`ldap.${DOMAIN}`)
+      traefik.http.services.ldap.loadbalancer.server.port: 80
+      traefik.http.routers.ldap.entrypoints: websecure
+      traefik.http.routers.ldap.tls: true
+      traefik.http.routers.ldap.tls.certResolver: letsencrypt
 
   mailrise:
     image: yoryan/mailrise

@@ -102,6 +102,14 @@ volumes:
     driver_opts:
       <<: *driver-opts
       device: ${CONFIG_DIR}/jellyseerr
+  config-ldap:
+    driver_opts:
+      <<: *driver-opts
+      device: ${CONFIG_DIR}/ldap/config
+  config-ldap-db:
+    driver_opts:
+      <<: *driver-opts
+      device: ${CONFIG_DIR}/ldap/db
   config-lidarr:
     driver_opts:
       <<: *driver-opts

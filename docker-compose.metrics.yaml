@@ -113,3 +113,19 @@ x-common-metrics: &metrics
     labels:
       traefik.enable: false
 
+  postgres-exporter:
+    image: quay.io/prometheuscommunity/postgres-exporter
+    container_name: postgres-exporter
+    depends_on:
+      - postgres
+    <<: *common
+    networks:
+      - internal
+    environment:
+      <<: *env-vars
+      DATA_SOURCE_URI: postgres?sslmode=disable
+      DATA_SOURCE_USER: ${DATABASE_USERNAME}
+      DATA_SOURCE_PASS: ${DATABASE_PASSWORD}
+      PG_EXPORTER_AUTO_DISCOVER_DATABASES: true
+    labels:
+      traefik.enable: false
