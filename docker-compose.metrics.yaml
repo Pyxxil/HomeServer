@@ -129,3 +129,4 @@ x-common-metrics: &metrics
       PG_EXPORTER_AUTO_DISCOVER_DATABASES: true
     labels:
       traefik.enable: false
+

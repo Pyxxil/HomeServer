@@ -6,3 +6,4 @@ services:
   <<: *cloud
   <<: *media
   <<: *databases
+  <<: *other

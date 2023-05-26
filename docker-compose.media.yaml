@@ -45,29 +45,6 @@ x-common-media: &media
       traefik.http.routers.sonarr.tls.certResolver: letsencrypt
       traefik.http.routers.sonarr.middlewares: authelia
 
-  lidarr:
-    image: lscr.io/linuxserver/lidarr
-    container_name: lidarr
-    <<: *common
-    volumes:
-      - config-scripts:/scripts
-      - config-lidarr:/config
-      - media-music:/music
-      - downloads:/downloads
-    healthcheck:
-      test: ["CMD-SHELL", "curl --fail localhost:8686"]
-      interval: 45s
-      timeout: 30s
-      retries: 3
-    labels:
-      traefik.http.routers.lidarr.rule:
-        Host(`request.${DOMAIN}`) && PathPrefix(`/music`)
-      traefik.http.services.lidarr.loadBalancer.server.port: 8686
-      traefik.http.routers.lidarr.entrypoints: websecure
-      traefik.http.routers.lidarr.tls: true
-      traefik.http.routers.lidarr.tls.certResolver: letsencrypt
-      traefik.http.routers.lidarr.middlewares: authelia
-
   readarr:
     image: lscr.io/linuxserver/readarr:develop
     container_name: readarr
@@ -123,6 +100,19 @@ x-common-media: &media
       traefik.http.routers.prowlarr.tls: true
       traefik.http.routers.prowlarr.tls.certResolver: letsencrypt
       traefik.http.routers.prowlarr.middlewares: authelia
+
+  recyclarr:
+    image: ghcr.io/recyclarr/recyclarr
+    container_name: recyclarr
+    depends_on:
+      - sonarr
+      - radarr
+    <<: *common
+    user: ${PUID}:${PGID}
+    volumes:
+      - config-recyclarr:/config
+    labels:
+      traefik.enable: false
 
   flaresolverr:
     image: ghcr.io/flaresolverr/flaresolverr:latest
@@ -198,7 +188,7 @@ x-common-media: &media
     environment:
       <<: *env-vars
       DOCKER_MODS: linuxserver/mods:jellyfin-amd
-      JELLYFIN_PublishedServerUrl: ${IP}
+      JELLYFIN_PublishedServerUrl: https://watch.${DOMAIN}
     volumes:
       - config-jellyfin:/config
       - config-jellyfin-cache:/cache
@@ -211,8 +201,7 @@ x-common-media: &media
       - "989" # getent group render | cut -d: -f3
       - "986" # getent group video | cut -d: -f3
     devices:
-      - /dev/dri/renderD128:/dev/dri/renderD128
-      - /dev/dri/card0:/dev/dri/card0
+      - /dev/dri:/dev/dri
     ports:
       - 7359:7359/udp
     healthcheck:

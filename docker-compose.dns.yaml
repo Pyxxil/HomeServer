@@ -42,7 +42,7 @@ x-common-dns: &dns
 
   blackhole:
     container_name: blackhole
-    image: ghcr.io/pyxxil/blackhole
+    image: ghcr.io/pyxxilated-studios/blackhole
     <<: *common
     restart: always
     depends_on:

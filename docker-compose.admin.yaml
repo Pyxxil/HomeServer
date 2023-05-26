@@ -17,6 +17,7 @@ x-common-admin: &admin
       - --entrypoints.web.proxyProtocol.insecure=false
       - --entryPoints.web.forwardedHeaders.trustedIPs=10.0.0.0/8,172.0.0.0/8,192.168.0.0/16,fc00::/7,100.0.0.0/8
       - --entryPoints.web.proxyProtocol.trustedIPs=10.0.0.0/8,172.0.0.0/8,192.168.0.0/16,fc00::/7,100.0.0.0/8
+      - --entrypoints.ldaps.address=:636
       - --entrypoints.websecure.address=:443
       - --entrypoints.websecure.http3
       - --entrypoints.websecure.http.tls.certResolver=letsencrypt
@@ -27,7 +28,6 @@ x-common-admin: &admin
       - --entrypoints.websecure.forwardedHeaders.insecure=false
       - --entrypoints.websecure.proxyProtocol.insecure=false
       - --experimental.http3=true
-      - --log.level=debug
       - --ping=true
       - --metrics.prometheus=true
       - --providers.docker=true
@@ -123,7 +123,11 @@ x-common-admin: &admin
       LDAP_ADMIN_PASSWORD: ${LDAP_PASSWORD}
       LDAP_READONLY_USER: false
     labels:
-      traefik.enable: false
+      traefik.tcp.routers.ldap.rule: HostSNI(`*`)
+      traefik.tcp.routers.ldap.entrypoints: ldaps
+      traefik.tcp.routers.ldap.tls: true
+      traefik.tcp.routers.ldap.tls.certresolver: letsencrypt
+      traefik.tcp.services.ldap.loadbalancer.server.port: 636
 
   ldap-user-manager:
     image: wheelybird/ldap-user-manager
@@ -133,7 +137,7 @@ x-common-admin: &admin
       - ldap
     environment:
       <<: *env-vars
-      SERVER_HOSTNAME: https://ldap.${DOMAIN}
+      SERVER_HOSTNAME: ldap.${DOMAIN}
       ORGANISATION_NAME: ${ORGANISATION}
       LDAP_URI: "ldap://ldap"
       LDAP_BASE_DN: dc=${DC_DOMAIN},dc=${TLD}
@@ -144,8 +148,10 @@ x-common-admin: &admin
       LDAP_REQUIRE_STARTTLS: false
       LDAP_DEBUG: true
       NO_HTTPS: true
+      SMTP_LOG_LEVEL: 3
       SMTP_HOSTNAME: ${SMTP_HOST}
       SMTP_HOST_PORT: 25
+      SMTP_USE_TLS: true
       SMTP_USERNAME: ${SMTP_USER}
       SMTP_PASSWORD: ${SMTP_PASS}
       EMAIL_FROM_ADDRESS: account@${DOMAIN}

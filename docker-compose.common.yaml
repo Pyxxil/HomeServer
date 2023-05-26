@@ -182,6 +182,14 @@ volumes:
     driver_opts:
       <<: *driver-opts
       device: ${CONFIG_DIR}/readarr
+  config-recyclarr:
+    driver_opts:
+      <<: *driver-opts
+      device: ${CONFIG_DIR}/recyclarr
+  config-redis:
+    driver_opts:
+      <<: *driver-opts
+      device: ${CONFIG_DIR}/redis
   config-scripts:
     driver_opts:
       <<: *driver-opts

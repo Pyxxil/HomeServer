@@ -1,0 +1,13 @@
+
+x-common-other: &other
+  it-tools:
+    container_name: it-tools
+    image: ghcr.io/corentinth/it-tools
+    <<: *common
+    labels:
+      traefik.http.routers.tools.rule: Host(`tools.${DOMAIN}`)
+      traefik.http.services.tools.loadbalancer.server.port: 80
+      traefik.http.routers.tools.entrypoints: websecure
+      traefik.http.routers.tools.tls: true
+      traefik.http.routers.tools.tls.certResolver: letsencrypt
+

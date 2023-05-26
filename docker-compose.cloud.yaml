@@ -231,7 +231,7 @@ x-common-cloud: &cloud
 
   mealie:
     container_name: mealie
-    image: hkotel/mealie:latest
+    image: hkotel/mealie:omni-nightly
     <<: *common
     depends_on:
       - postgres
@@ -243,17 +243,27 @@ x-common-cloud: &cloud
       POSTGRES_SERVER: postgres
       POSTGRES_PORT: 5432
       POSTGRES_DB: mealie
-      RECIPE_PUBLIC: 'true'
-      RECIPE_SHOW_NUTRITION: 'true'
-      RECIPE_SHOW_ASSETS: 'true'
-      RECIPE_LANDSCAPE_VIEW: 'true'
-      RECIPE_DISABLE_COMMENTS: 'false'
-      RECIPE_DISABLE_AMOUNT: 'false'
+      SMTP_HOST: ${SMTP_HOST}
+      STP_FROM_NAME: Mealie
+      SMTP_USER: ${SMTP_USER}
+      SMTP_PASSWORD: ${SMTP_PASS}
+      SMTP_FROM_EMAIL: meals@${DOMAIN}
+      SMTP_PORT: 25
+      SMTP_AUTH_STRATEGY: 'TLS'
+      BASE_URL: https://mealie.${DOMAIN}
+      LDAP_AUTH_ENABLED: true
+      LDAP_TLS_INSECURE: true
+      LDAP_SERVER_URL: ldap://ldap
+      LDAP_BASE_DN: "dc=${DC_DOMAIN},dc=${TLD}"
+      LDAP_USER_FILTER: "(&(|(uid={input})(mail={input}))(objectClass=person))"
+      LDAP_ADMIN_FILTER: "(memberOf=cn=admins,ou=groups,dc=${DC_DOMAIN},dc=${TLD})"
+      LDAP_QUERY_BIND: "cn=admin,dc=${DC_DOMAIN},dc=${TLD}"
+      LDAP_QUERY_PASSWORD: "${LDAP_PASSWORD}"
     volumes:
       - config-mealie-data:/app/data
     labels:
       traefik.http.routers.mealie.rule: Host(`meals.${DOMAIN}`)
-      traefik.http.services.mealie.loadbalancer.server.port: 80
+      traefik.http.services.mealie.loadbalancer.server.port: 3000
       traefik.http.routers.mealie.entrypoints: websecure
       traefik.http.routers.mealie.tls: true
       traefik.http.routers.mealie.tls.certResolver: letsencrypt
