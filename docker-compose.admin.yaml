@@ -17,7 +17,6 @@ x-common-admin: &admin
       - --entrypoints.web.proxyProtocol.insecure=false
       - --entryPoints.web.forwardedHeaders.trustedIPs=10.0.0.0/8,172.0.0.0/8,192.168.0.0/16,fc00::/7,100.0.0.0/8
       - --entryPoints.web.proxyProtocol.trustedIPs=10.0.0.0/8,172.0.0.0/8,192.168.0.0/16,fc00::/7,100.0.0.0/8
-      - --entrypoints.ldaps.address=:636
       - --entrypoints.websecure.address=:443
       - --entrypoints.websecure.http3
       - --entrypoints.websecure.http.tls.certResolver=letsencrypt
@@ -30,6 +29,9 @@ x-common-admin: &admin
       - --experimental.http3=true
       - --ping=true
       - --metrics.prometheus=true
+      - --metrics.prometheus.addServicesLabels=true
+      - --metrics.prometheus.addrouterslabels=true
+      - --metrics.prometheus.addEntryPointsLabels=true
       - --providers.docker=true
       - --providers.docker.watch=true
       - --providers.docker.exposedbydefault=true
@@ -42,8 +44,6 @@ x-common-admin: &admin
       - 80:80
       - 443:443/tcp
       - 443:443/udp
-      - 8080:8080
-      - 8888:8888
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - config-traefik:/config
@@ -59,6 +59,8 @@ x-common-admin: &admin
       interval: 30s
       timeout: 3s
       retries: 3
+    depends_on:
+      - auth
     labels:
       traefik.http.routers.dashboard.rule: Host(`dash.${DOMAIN}`)
       traefik.http.routers.dashboard.service: api@internal
@@ -71,27 +73,12 @@ x-common-admin: &admin
       traefik.http.middlewares.redirect-to-https.redirectscheme.scheme: https
       traefik.http.middlewares.redirect-to-https.redirectScheme.permanent: true
 
-  portainer:
-    image: portainer/portainer-ce
-    container_name: admin
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-      - config-portainer:/data
-    <<: *common
-    labels:
-      traefik.http.routers.admin.rule: Host(`admin.${DOMAIN}`)
-      traefik.http.services.admin.loadbalancer.server.port: 9000
-      traefik.http.routers.admin.entrypoints: websecure
-      traefik.http.routers.admin.tls: true
-      traefik.http.routers.admin.tls.certResolver: letsencrypt
-
   auth:
     image: authelia/authelia
     container_name: authelia
     <<: *common
     depends_on:
       - ldap
-      - wiki
     volumes:
       - config-authelia:/config
     labels:
@@ -107,13 +94,14 @@ x-common-admin: &admin
   ldap:
     image: osixia/openldap
     container_name: ldap
+    hostname: ldap.${DOMAIN}
     <<: *common
     volumes:
       - config-ldap-db:/var/lib/ldap
       - config-ldap:/etc/ldap/slapd.d
-    expose:
-      - 389
-      - 636
+    ports:
+      - 389:389
+      - 636:636
     environment:
       <<: *env-vars
       LDAP_ORGANISATION: ${ORGANISATION}
@@ -122,12 +110,10 @@ x-common-admin: &admin
       LDAP_RFC2307BIS_SCHEMA: true
       LDAP_ADMIN_PASSWORD: ${LDAP_PASSWORD}
       LDAP_READONLY_USER: false
+      LDAP_TLS: true
+      LDAP_TLS_VERIFY_CLIENT: 'never'
     labels:
-      traefik.tcp.routers.ldap.rule: HostSNI(`*`)
-      traefik.tcp.routers.ldap.entrypoints: ldaps
-      traefik.tcp.routers.ldap.tls: true
-      traefik.tcp.routers.ldap.tls.certresolver: letsencrypt
-      traefik.tcp.services.ldap.loadbalancer.server.port: 636
+      traefik.enable: false
 
   ldap-user-manager:
     image: wheelybird/ldap-user-manager
@@ -137,15 +123,16 @@ x-common-admin: &admin
       - ldap
     environment:
       <<: *env-vars
-      SERVER_HOSTNAME: ldap.${DOMAIN}
+      SERVER_HOSTNAME: account.${DOMAIN}
       ORGANISATION_NAME: ${ORGANISATION}
-      LDAP_URI: "ldap://ldap"
+      LDAP_URI: "ldaps://ldap"
       LDAP_BASE_DN: dc=${DC_DOMAIN},dc=${TLD}
       LDAP_ADMINS_GROUP: "admins"
       LDAP_ADMIN_BIND_DN: "cn=admin,dc=${DC_DOMAIN},dc=${TLD}"
       LDAP_ADMIN_BIND_PWD: ${LDAP_PASSWORD}
       LDAP_USES_NIS_SCHEMA: false
       LDAP_REQUIRE_STARTTLS: false
+      LDAP_IGNORE_CERT_ERRORS: true
       LDAP_DEBUG: true
       NO_HTTPS: true
       SMTP_LOG_LEVEL: 3
@@ -157,11 +144,11 @@ x-common-admin: &admin
       EMAIL_FROM_ADDRESS: account@${DOMAIN}
       EMAIL_DOMAIN: ${DOMAIN}
     labels:
-      traefik.http.routers.ldap.rule: Host(`ldap.${DOMAIN}`)
-      traefik.http.services.ldap.loadbalancer.server.port: 80
-      traefik.http.routers.ldap.entrypoints: websecure
-      traefik.http.routers.ldap.tls: true
-      traefik.http.routers.ldap.tls.certResolver: letsencrypt
+      traefik.http.routers.ldap-user-manager.rule: Host(`account.${DOMAIN}`)
+      traefik.http.services.ldap-user-manager.loadbalancer.server.port: 80
+      traefik.http.routers.ldap-user-manager.entrypoints: websecure
+      traefik.http.routers.ldap-user-manager.tls: true
+      traefik.http.routers.ldap-user-manager.tls.certResolver: letsencrypt
 
   mailrise:
     image: yoryan/mailrise
@@ -187,6 +174,7 @@ x-common-admin: &admin
     image: crazymax/diun
     container_name: diun
     command: serve
+    hostname: diun.${DOMAIN}
     <<: *common
     volumes:
       - config-diun:/data
@@ -200,6 +188,15 @@ x-common-admin: &admin
       DIUN_PROVIDERS_DOCKER_WATCHBYDEFAULT: true
       DIUN_NOTIF_DISCORD_WEBHOOKURL: ${DISCORD_WEBHOOK_URL}
       DIUN_NOTIF_DISCORD_MENTIONS: ${DISCORD_MENTIONS}
+    labels:
+      traefik.enable: false
+
+  speedtest-exporter:
+    image: miguelndecarvalho/speedtest-exporter
+    container_name: speedtest
+    <<: *common
+    ports:
+      - 9798
     labels:
       traefik.enable: false
 

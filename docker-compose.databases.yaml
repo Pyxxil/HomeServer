@@ -1,3 +1,4 @@
+
 x-common-databases: &databases
   postgres:
     image: postgres
@@ -17,7 +18,7 @@ x-common-databases: &databases
       <<: *env-vars
       POSTGRES_USER: ${DATABASE_USERNAME}
       POSTGRES_PASSWORD: ${DATABASE_PASSWORD}
-      POSTGRES_MULTIPLE_DATABASES: vikunja,vaultwarden,outline,auth,pocket,mealie,firefly
+      POSTGRES_MULTIPLE_DATABASES: vikunja,vaultwarden,outline,auth,pocket,mealie,firefly,letsblockit
     labels:
       traefik.enable: false
 
@@ -61,4 +62,11 @@ x-common-databases: &databases
       traefik.http.routers.minio.entrypoints: websecure
       traefik.http.routers.minio.tls: true
       traefik.http.routers.minio.tls.certResolver: letsencrypt
+      traefik.http.routers.minio.service: minio
+      traefik.http.routers.minioadmin.entrypoints: websecure
+      traefik.http.routers.minioadmin.rule: Host(`minioapi.${DOMAIN}`)
+      traefik.http.services.minioadmin.loadbalancer.server.port: 9000
+      traefik.http.routers.minioadmin.tls: true
+      traefik.http.routers.minioadmin.tls.certResolver: letsencrypt
+      traefik.http.routers.minioadmin.service: minioadmin
 

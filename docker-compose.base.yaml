@@ -1,9 +1,4 @@
 
 services:
-  <<: *admin
-  <<: *metrics
-  <<: *dns
-  <<: *cloud
-  <<: *media
-  <<: *databases
-  <<: *other
+  <<: [ *admin, *metrics, *dns, *cloud, *media, *databases, *other ]
+

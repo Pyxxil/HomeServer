@@ -74,6 +74,10 @@ x-common-media: &media
     <<: *common
     volumes:
       - media-youtube:/downloads
+    environment:
+      <<: *env-vars
+      OUTPUT_TEMPLATE: "%(uploader)s - %(upload_date)s - %(title)s [%(id)s].%(ext)s"
+      YTDL_OPTIONS: '{ "writeinfojson": true, "updatetime": false, "postprocessors": [{ "key": "Exec", "exec_cmd": "chmod 0664", "when": "after_move" }] }'
     labels:
       traefik.http.routers.youtube.rule: Host(`youtube.${DOMAIN}`)
       traefik.http.routers.youtube.entrypoints: websecure
@@ -119,7 +123,7 @@ x-common-media: &media
     container_name: flaresolverr
     <<: *common
     ports:
-      - 8191:8191
+      - 127.0.0.1:8191:8191
     labels:
       traefik.enable: false
 
@@ -133,9 +137,6 @@ x-common-media: &media
     volumes:
       - config-qbittorrent:/config
       - downloads:/downloads
-    ports:
-      - 6881:6881/tcp
-      - 6881:6881/udp
     healthcheck:
       test: ["CMD-SHELL", "curl --fail localhost:8980"]
       interval: 1m30s
@@ -187,7 +188,9 @@ x-common-media: &media
     <<: *common
     environment:
       <<: *env-vars
-      DOCKER_MODS: linuxserver/mods:jellyfin-amd
+      DOCKER_MODS: linuxserver/mods:jellyfin-amd|linuxserver/mods:universal-package-install
+      INSTALL_PACKAGES: python3
+      INSTALL_PIP_PACKAGES: yt-dlp
       JELLYFIN_PublishedServerUrl: https://watch.${DOMAIN}
     volumes:
       - config-jellyfin:/config
@@ -202,8 +205,6 @@ x-common-media: &media
       - "986" # getent group video | cut -d: -f3
     devices:
       - /dev/dri:/dev/dri
-    ports:
-      - 7359:7359/udp
     healthcheck:
       test: ["CMD-SHELL", "curl --fail localhost:8096"]
       interval: 1m30s
@@ -216,15 +217,11 @@ x-common-media: &media
       traefik.http.routers.watch.entrypoints: websecure
       traefik.http.routers.watch.tls: true
       traefik.http.routers.watch.tls.certResolver: letsencrypt
-      traefik.http.middlewares.csp.headers.contentSecurityPolicy: >-
-        default-src https: data: blob:; style-src 'self' 'unsafe-inline'
-        https://ctalvio.github.io https://fonts.googleapis.com/css2
-        https://cdn.jsdelivr.net https://raw.githubusercontent.com/danieladov;
-        script-src 'self' 'unsafe-inline'
-        https://www.gstatic.com/cv/js/sender/v1/cast_sender.js
-        https://www.youtube.com/iframe_api https://s.ytimg.com worker-src 'self'
-        blob:; connect-src 'self' https://raw.githubusercontent.com/danieladov;
-        object-src 'none'; frame-ancestors 'self'
+      traefik.http.middlewares.csp.headers.customResponseHeaders.Content-Security-Policy-Report-Only: >-
+          default-src https: data: blob:; style-src 'self' 'unsafe-inline';
+          script-src 'self' 'unsafe-inline';
+          worker-src 'self' blob:; connect-src 'self' https:;
+          object-src 'none'; frame-ancestors 'self'
       traefik.http.routers.watch.middlewares: csp
 
   podgrab:
@@ -236,7 +233,7 @@ x-common-media: &media
       CHECK_FREQUENCY: 240
     volumes:
       - config-podgrab:/config
-      - config-podgrab-data:/assets
+      - media-podcasts:/assets
     labels:
       traefik.http.routers.podgrab.rule: Host(`podcasts.${DOMAIN}`)
       traefik.http.services.podgrab.loadBalancer.server.port: 8080
@@ -264,4 +261,20 @@ x-common-media: &media
       traefik.http.routers.calibre.tls: true
       traefik.http.routers.calibre.tls.certResolver: letsencrypt
       traefik.http.routers.calibre.middlewares: authelia
+
+  beets:
+    image: lscr.io/linuxserver/beets:latest
+    container_name: beets
+    <<: *common
+    volumes:
+      - config-beets:/config
+      - media-music:/music
+      - downloads-music:/downloads
+    labels:
+      traefik.http.routers.beets.rule: Host(`beets.${DOMAIN}`)
+      traefik.http.services.beets.loadBalancer.server.port: 8337
+      traefik.http.routers.beets.entrypoints: websecure
+      traefik.http.routers.beets.tls: true
+      traefik.http.routers.beets.tls.certResolver: letsencrypt
+      traefik.http.routers.beets.middlewares: authelia
 

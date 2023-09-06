@@ -1,5 +1,15 @@
 
 x-common-other: &other
+  mc:
+    image: minio/mc
+    container_name: mc
+    <<: *common
+    restart: "no"
+    depends_on:
+      - minio
+    labels:
+      traefik.enable: false
+
   it-tools:
     container_name: it-tools
     image: ghcr.io/corentinth/it-tools
@@ -10,4 +20,24 @@ x-common-other: &other
       traefik.http.routers.tools.entrypoints: websecure
       traefik.http.routers.tools.tls: true
       traefik.http.routers.tools.tls.certResolver: letsencrypt
+
+  archive-warrior:
+    container_name: archive-warrior
+    image: atdr.meo.ws/archiveteam/warrior-dockerfile
+    <<: *common
+    environment:
+      <<: *env-vars
+      SELECTED_PROJECT: auto
+      DOWNLOADER: pyxxil
+    dns:
+      - 1.1.1.1
+      - 9.9.9.9
+    labels:
+      traefik.port: 8001
+      traefik.http.routers.warrior.rule: Host(`warrior.${DOMAIN}`)
+      traefik.http.services.warrior.loadbalancer.server.port: 8001
+      traefik.http.routers.warrior.entrypoints: websecure
+      traefik.http.routers.warrior.tls: true
+      traefik.http.routers.warrior.tls.certResolver: letsencrypt
+      diun.enable: false
 

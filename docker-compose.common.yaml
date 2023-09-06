@@ -19,10 +19,10 @@ x-common-logging: &logging
     driver: "json-file"
     options:
       tag: "{{.ImageName}}|{{.Name}}|{{.ImageFullID}}|{{.FullID}}"
+      max-size: "50m"
 
 x-common-common: &common
-  <<: *networks
-  <<: *logging
+  <<: [*networks, *logging]
   restart: unless-stopped
   environment: *env-vars
 
@@ -46,6 +46,10 @@ volumes:
     driver_opts:
       <<: *driver-opts
       device: ${CONFIG_DIR}/authelia
+  config-beets:
+    driver_opts:
+      <<: *driver-opts
+      device: ${CONFIG_DIR}/beets
   config-blackhole:
     driver_opts:
       <<: *driver-opts
@@ -146,10 +150,6 @@ volumes:
     driver_opts:
       <<: *driver-opts
       device: ${CONFIG_DIR}/podgrab/config
-  config-podgrab-data:
-    driver_opts:
-      <<: *driver-opts
-      device: ${CONFIG_DIR}/podgrab/data
   config-portainer:
     driver_opts:
       <<: *driver-opts
@@ -226,6 +226,10 @@ volumes:
     driver_opts:
       <<: *driver-opts
       device: ${DOWNLOAD_DIR}
+  downloads-music:
+    driver_opts:
+      <<: *driver-opts
+      device: ${DOWNLOAD_DIR}/Music
   media:
     driver_opts:
       <<: *driver-opts
@@ -242,14 +246,14 @@ volumes:
     driver_opts:
       <<: *driver-opts
       device: ${DATA_DIR}/Music
+  media-podcasts:
+    driver_opts:
+      <<: *driver-opts
+      device: ${DATA_DIR}/Podcasts
   media-shows:
     driver_opts:
       <<: *driver-opts
       device: ${DATA_DIR}/Television Shows
-  media-wikipedia:
-    driver_opts:
-      <<: *driver-opts
-      device: ${DATA_DIR}/wikipedia
   media-youtube:
     driver_opts:
       <<: *driver-opts
@@ -258,3 +262,4 @@ volumes:
     driver_opts:
       <<: *driver-opts
       device: ${SYNC_DIR}
+

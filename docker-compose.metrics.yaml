@@ -36,8 +36,6 @@ x-common-metrics: &metrics
     volumes:
       - config-grafana:/etc/grafana
       - config-grafana-data:/var/lib/grafana
-    ports:
-      - 3001:3000
     healthcheck:
       test: ["CMD-SHELL", "wget --spider http://localhost:3000 || exit 1"]
       interval: 10s
@@ -59,10 +57,9 @@ x-common-metrics: &metrics
     volumes:
       - config-loki:/etc/loki
       - config-loki-data:/loki
-    ports:
-      - 3100:3100
     labels:
       traefik.enable: false
+      force: false
 
   promtail:
     container_name: promtail

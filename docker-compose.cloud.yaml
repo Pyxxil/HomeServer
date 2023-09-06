@@ -62,7 +62,7 @@ x-common-cloud: &cloud
       <<: *env-vars
       VIKUNJA_API_URL: https://todo.${DOMAIN}/api/v1
     ports:
-      - 3002:3000
+      - 127.0.0.1:3000:3000
     healthcheck:
       test: ["CMD-SHELL", "curl --fail localhost"]
       interval: 1m30s
@@ -83,8 +83,8 @@ x-common-cloud: &cloud
       - config-syncthing:/config
       - sync:/config/Sync
     ports:
-      - 22000:22000
-      - 21027:21027/udp
+      - 127.0.0.1:22000:22000
+      - 127.0.0.1:21027:21027/udp
     healthcheck:
       test: nc -z 127.0.0.1 8384 || exit 1
       interval: 30s
@@ -205,10 +205,13 @@ x-common-cloud: &cloud
       traefik.http.routers.outline.tls.certResolver: letsencrypt
 
   homeassistant:
-    image: ghcr.io/home-assistant/home-assistant:stable
+    image: lscr.io/linuxserver/homeassistant
     container_name: homeassistant
     <<: *logging
-    environment: *env-vars
+    environment:
+      <<: *env-vars
+      DOCKER_MODS: "linuxserver/mods:homeassistant-hacs|linuxserver/mods:universal-package-install"
+      INSTALL_PACKAGES: "openldap-clients"
     network_mode: host
     volumes:
       - config-home-assistant:/config
@@ -311,18 +314,4 @@ x-common-cloud: &cloud
     <<: *common
     labels:
       traefik.enable: false
-
-  wikipedia:
-    container_name: wikipedia
-    image: ghcr.io/kiwix/kiwix-serve
-    <<: *common
-    command: "*"
-    volumes:
-      - media-wikipedia:/data
-    labels:
-      traefik.http.routers.wikipedia.rule: Host(`wikipedia.${DOMAIN}`)
-      traefik.http.services.wikipedia.loadbalancer.server.port: 8080
-      traefik.http.routers.wikipedia.entrypoints: websecure
-      traefik.http.routers.wikipedia.tls: true
-      traefik.http.routers.wikipedia.tls.certResolver: letsencrypt
 

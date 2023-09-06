@@ -1,0 +1,19 @@
+include:
+  - ./docker-compose.databases.yaml
+  - ./docker-compose.common.yaml
+  - ./docker-compose.admin.yaml
+  - ./docker-compose.dns.yaml
+  - ./docker-compose.cloud.yaml
+  - ./docker-compose.media.yaml
+  - ./docker-compose.metrics.yaml
+  - ./docker-compose.other.yaml
+  - ./docker-compose.base.yaml
+
+services:
+  <<: *admin
+  <<: *metrics
+  <<: *dns
+  <<: *cloud
+  <<: *media
+  <<: *databases
+  <<: *other
