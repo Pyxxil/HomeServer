@@ -41,6 +41,7 @@ x-common-dns: &dns
   blackhole:
     container_name: blackhole
     image: ghcr.io/pyxxilated-studios/blackhole
+    hostname: blackhole.${DOMAIN}
     <<: *common
     restart: always
     depends_on:
@@ -99,10 +100,12 @@ x-common-dns: &dns
       traefik.http.routers.adguard.entrypoints: websecure
       traefik.http.routers.adguard.tls: true
       traefik.http.routers.adguard.tls.certResolver: letsencrypt
+      traefik.http.routers.adguard.middlewares: authelia
 
   letsblockit:
     image: ghcr.io/letsblockit/server
     container_name: letsblockit
+    hostname: letsblockit.${DOMAIN}
     depends_on:
       - postgres
     <<: *common
@@ -117,5 +120,5 @@ x-common-dns: &dns
       traefik.http.routers.letsblockit.entrypoints: websecure
       traefik.http.routers.letsblockit.tls: true
       traefik.http.routers.letsblockit.tls.certResolver: letsencrypt
-      traefik.http.routers.letsblockit.middlewares: authelia@docker
+      traefik.http.routers.letsblockit.middlewares: authelia
 

@@ -13,6 +13,7 @@ x-common-other: &other
   it-tools:
     container_name: it-tools
     image: ghcr.io/corentinth/it-tools
+    hostname: tools.${DOMAIN}
     <<: *common
     labels:
       traefik.http.routers.tools.rule: Host(`tools.${DOMAIN}`)
@@ -24,6 +25,7 @@ x-common-other: &other
   archive-warrior:
     container_name: archive-warrior
     image: atdr.meo.ws/archiveteam/warrior-dockerfile
+    hostname: warrior.${DOMAIN}
     <<: *common
     environment:
       <<: *env-vars

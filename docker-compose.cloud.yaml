@@ -78,13 +78,15 @@ x-common-cloud: &cloud
   sync:
     container_name: sync
     image: lscr.io/linuxserver/syncthing
+    hostname: sync.${DOMAIN}
     <<: *common
     volumes:
       - config-syncthing:/config
       - sync:/config/Sync
     ports:
-      - 127.0.0.1:22000:22000
-      - 127.0.0.1:21027:21027/udp
+      - 22000:22000/tcp
+      - 22000:22000/udp
+      - 21027:21027/udp
     healthcheck:
       test: nc -z 127.0.0.1 8384 || exit 1
       interval: 30s
@@ -100,6 +102,7 @@ x-common-cloud: &cloud
   vaultwarden:
     image: vaultwarden/server
     container_name: vaultwarden
+    hostname: vault.${DOMAIN}
     <<: *common
     volumes:
       - config-vaultwarden:/data
@@ -117,23 +120,16 @@ x-common-cloud: &cloud
       SMTP_FROM: vault@${DOMAIN}
       DATABASE_URL: postgresql://${DATABASE_USERNAME}:${DATABASE_PASSWORD}@postgres:5432/vaultwarden
     labels:
-      traefik.http.routers.vaultwarden-ui.rule: Host(`vault.${DOMAIN}`)
-      traefik.http.services.vaultwarden-ui.loadbalancer.server.port: 8800
-      traefik.http.routers.vaultwarden-ui.entrypoints: websecure
-      traefik.http.routers.vaultwarden-ui.tls: true
-      traefik.http.routers.vaultwarden-ui.tls.certResolver: letsencrypt
-      traefik.http.routers.vaultwarden-ui.service: vaultwarden-ui
-      traefik.http.routers.vaultwarden-websocket.rule:
-        Host(`vault.${DOMAIN}`) && Path(`/notifications/hub`)
-      traefik.http.routers.vaultwarden-websocket.entrypoints: websecure
-      traefik.http.routers.vaultwarden-websocket.tls: true
-      traefik.http.routers.vaultwarden-websocket.tls.certResolver: letsencrypt
-      traefik.http.routers.vaultwarden-websocket.service: vaultwarden-websocket
-      traefik.http.services.vaultwarden-websocket.loadbalancer.server.port: 3012
+      traefik.http.routers.vaultwarden.rule: Host(`vault.${DOMAIN}`)
+      traefik.http.services.vaultwarden.loadbalancer.server.port: 8800
+      traefik.http.routers.vaultwarden.entrypoints: websecure
+      traefik.http.routers.vaultwarden.tls: true
+      traefik.http.routers.vaultwarden.tls.certResolver: letsencrypt
 
   freshrss:
     image: lscr.io/linuxserver/freshrss
     container_name: freshrss
+    hostname: rss.${DOMAIN}
     <<: *common
     volumes:
       - config-freshrss:/config
@@ -156,6 +152,7 @@ x-common-cloud: &cloud
   pocket:
     image: sissbruecker/linkding
     container_name: pocket
+    hostname: pocket.${DOMAIN}
     <<: *common
     environment:
       <<: *env-vars
@@ -185,6 +182,7 @@ x-common-cloud: &cloud
   wiki:
     image: outlinewiki/outline
     container_name: wiki
+    hostname: wiki.${DOMAIN}
     env_file: ${CONFIG_DIR}/outline/config.env
     <<: *common
     depends_on:
@@ -207,11 +205,13 @@ x-common-cloud: &cloud
   homeassistant:
     image: lscr.io/linuxserver/homeassistant
     container_name: homeassistant
+    dns:
+      - ${IP}
     <<: *logging
     environment:
       <<: *env-vars
       DOCKER_MODS: "linuxserver/mods:homeassistant-hacs|linuxserver/mods:universal-package-install"
-      INSTALL_PACKAGES: "openldap-clients"
+      INSTALL_PACKAGES: "openldap-clients|curl"
     network_mode: host
     volumes:
       - config-home-assistant:/config
@@ -222,6 +222,7 @@ x-common-cloud: &cloud
   homebox:
     image: ghcr.io/hay-kot/homebox
     container_name: homebox
+    hostname: manage.${DOMAIN}
     <<: *common
     volumes:
       - config-homebox-data:/data/
@@ -235,6 +236,7 @@ x-common-cloud: &cloud
   mealie:
     container_name: mealie
     image: hkotel/mealie:omni-nightly
+    hostname: meals.${DOMAIN}
     <<: *common
     depends_on:
       - postgres
@@ -247,13 +249,13 @@ x-common-cloud: &cloud
       POSTGRES_PORT: 5432
       POSTGRES_DB: mealie
       SMTP_HOST: ${SMTP_HOST}
-      STP_FROM_NAME: Mealie
+      SMTP_FROM_NAME: Mealie
       SMTP_USER: ${SMTP_USER}
       SMTP_PASSWORD: ${SMTP_PASS}
       SMTP_FROM_EMAIL: meals@${DOMAIN}
       SMTP_PORT: 25
       SMTP_AUTH_STRATEGY: 'TLS'
-      BASE_URL: https://mealie.${DOMAIN}
+      BASE_URL: https://meals.${DOMAIN}
       LDAP_AUTH_ENABLED: true
       LDAP_TLS_INSECURE: true
       LDAP_SERVER_URL: ldap://ldap
@@ -274,6 +276,7 @@ x-common-cloud: &cloud
   firefly:
     image: fireflyiii/core
     container_name: firefly
+    hostname: finances.${DOMAIN}
     <<: *common
     depends_on:
       - postgres
@@ -314,4 +317,15 @@ x-common-cloud: &cloud
     <<: *common
     labels:
       traefik.enable: false
+
+  speedtest:
+    container_name: openspeedtest
+    image: openspeedtest/latest
+    <<: *common
+    labels:
+      traefik.http.routers.speedtest.rule: Host(`speed.${DOMAIN}`)
+      traefik.http.services.speedtest.loadbalancer.server.port: 3000
+      traefik.http.routers.speedtest.entrypoints: websecure
+      traefik.http.routers.speedtest.tls: true
+      traefik.http.routers.speedtest.tls.certResolver: letsencrypt
 

@@ -2,6 +2,7 @@ x-common-metrics: &metrics
   prometheus:
     image: prom/prometheus
     container_name: prometheus
+    hostname: prometheus.${DOMAIN}
     <<: *common
     entrypoint: ["/bin/sh", "-c"]
     command:
@@ -28,6 +29,7 @@ x-common-metrics: &metrics
   grafana:
     image: grafana/grafana
     container_name: grafana
+    hostname: metrics.${DOMAIN}
     <<: *common
     user: ${PUID}
     environment:
@@ -52,6 +54,7 @@ x-common-metrics: &metrics
   loki:
     container_name: loki
     image: grafana/loki
+    hostname: loki.${DOMAIN}
     <<: *common
     command: -config.file=/etc/loki/loki-config.yaml
     volumes:
@@ -64,6 +67,7 @@ x-common-metrics: &metrics
   promtail:
     container_name: promtail
     image: grafana/promtail
+    hostname: logs.${DOMAIN}
     <<: *common
     command: -config.file=/etc/promtail/promtail-config.yaml
     volumes:
@@ -124,6 +128,15 @@ x-common-metrics: &metrics
       DATA_SOURCE_USER: ${DATABASE_USERNAME}
       DATA_SOURCE_PASS: ${DATABASE_PASSWORD}
       PG_EXPORTER_AUTO_DISCOVER_DATABASES: true
+    labels:
+      traefik.enable: false
+
+  speedtest-exporter:
+    image: miguelndecarvalho/speedtest-exporter
+    container_name: speedtest
+    <<: *common
+    ports:
+      - 127.0.0.1:9798:9798
     labels:
       traefik.enable: false
 

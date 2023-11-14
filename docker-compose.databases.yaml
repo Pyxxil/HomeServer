@@ -1,7 +1,7 @@
 
 x-common-databases: &databases
   postgres:
-    image: postgres
+    image: postgres:15
     container_name: postgres
     <<: *common
     networks:
@@ -51,11 +51,6 @@ x-common-databases: &databases
       <<: *env-vars
       MINIO_BROWSER_REDIRECT_URL: "https://minio.${DOMAIN}"
       MINIO_PROMETHEUS_AUTH_TYPE: "public"
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
-      interval: 30s
-      timeout: 20s
-      retries: 3
     labels:
       traefik.http.routers.minio.rule: Host(`minio.${DOMAIN}`)
       traefik.http.services.minio.loadbalancer.server.port: 9001

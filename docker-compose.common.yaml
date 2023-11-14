@@ -134,10 +134,14 @@ volumes:
     driver_opts:
       <<: *driver-opts
       device: ${CONFIG_DIR}/mealie/data
-  config-onedev:
+  config-ntfy:
     driver_opts:
       <<: *driver-opts
-      device: ${CONFIG_DIR}/onedev
+      device: ${CONFIG_DIR}/ntfy/config
+  config-ntfy-cache:
+    driver_opts:
+      <<: *driver-opts
+      device: ${CONFIG_DIR}/ntfy/cache
   config-outline-storage:
     driver_opts:
       <<: *driver-opts
@@ -150,10 +154,6 @@ volumes:
     driver_opts:
       <<: *driver-opts
       device: ${CONFIG_DIR}/podgrab/config
-  config-portainer:
-    driver_opts:
-      <<: *driver-opts
-      device: ${CONFIG_DIR}/portainer
   config-postgres:
     driver_opts:
       <<: *driver-opts
