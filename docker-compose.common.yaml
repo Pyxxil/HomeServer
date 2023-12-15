@@ -146,6 +146,10 @@ volumes:
     driver_opts:
       <<: *driver-opts
       device: ${CONFIG_DIR}/outline/storage
+  config-piper:
+    driver_opts:
+      <<: *driver-opts
+      device: ${CONFIG_DIR}/piper
   config-pocket:
     driver_opts:
       <<: *driver-opts
@@ -222,6 +226,10 @@ volumes:
     driver_opts:
       <<: *driver-opts
       device: ${CONFIG_DIR}/vikunja-config
+  config-whisper:
+    driver_opts:
+      <<: *driver-opts
+      device: ${CONFIG_DIR}/whisper
   downloads:
     driver_opts:
       <<: *driver-opts
@@ -258,6 +266,10 @@ volumes:
     driver_opts:
       <<: *driver-opts
       device: ${DATA_DIR}/Youtube
+  models:
+    driver_opts:
+      <<: *driver-opts
+      device: ${DATA_DIR}/Models
   sync:
     driver_opts:
       <<: *driver-opts

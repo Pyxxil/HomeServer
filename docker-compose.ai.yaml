@@ -1,0 +1,64 @@
+
+x-common-ai: &ai  
+  piper:
+    image: lscr.io/linuxserver/piper:latest
+    container_name: piper
+    <<: *common
+    environment:
+      <<: *env-vars
+      PIPER_VOICE: en_GB-jenny_dioco-medium
+      PIPER_LENGTH: 1.0 #optional
+      PIPER_NOISE: 0.667 #optional
+      PIPER_NOISEW: 0.333 #optional
+      PIPER_SPEAKER: 0 #optional
+      PIPER_PROCS: 1 #optional
+    volumes:
+      - config-piper:/config
+    ports:
+      - 10200:10200
+    labels:
+      traefik.enable: false
+
+  faster-whisper:
+    image: lscr.io/linuxserver/faster-whisper:latest
+    container_name: faster-whisper
+    <<: *common
+    environment:
+      <<: *env-vars
+      WHISPER_MODEL: tiny-int8
+      WHISPER_BEAM: 1 #optional
+      WHISPER_LANGL: en #optional
+    volumes:
+      - config-whisper:/config
+    ports:
+      - 10300:10300
+    labels:
+      traefik.enable: false
+
+  open-wake-word:
+    image: rhasspy/wyoming-openwakeword
+    container_name: open-wake-word
+    command: --preload-model hey_mycroft
+    <<: *common
+    ports:
+      - 10400:10400 
+    labels:
+      traefik.enable: false
+
+  local-ai:
+    image: quay.io/go-skynet/local-ai:latest
+    container_name: local-ai
+    command: --models-path /models --context-size 700 --threads 8
+    <<: *common
+    environment:
+      <<: *env-vars
+      DEBUG: true
+    devices:
+      - /dev/dri:/dev/dri
+    ports:
+      - 8080:8080
+    volumes:
+      - models:/models
+    labels:
+      traefik.enable: false
+
