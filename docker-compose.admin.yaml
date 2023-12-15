@@ -186,8 +186,8 @@ x-common-admin: &admin
       DIUN_WATCH_JITTER: 30s
       DIUN_PROVIDERS_DOCKER: true
       DIUN_PROVIDERS_DOCKER_WATCHBYDEFAULT: true
-      DIUN_NOTIF_DISCORD_WEBHOOKURL: ${DISCORD_WEBHOOK_URL}
-      DIUN_NOTIF_DISCORD_MENTIONS: ${DISCORD_MENTIONS}
+      DIUN_NOTIF_NTFY_ENDPOINT: https://ntfy.${DOMAIN}
+      DIUN_NOTIF_NTFY_TOPIC: server
     labels:
       traefik.enable: false
 
@@ -212,4 +212,15 @@ x-common-admin: &admin
       traefik.tcp.routers.ntfy.tls: true
       traefik.tcp.routers.ntfy.tls.certresolver: letsencrypt
       traefik.tcp.routers.ntfy.entrypoints: websecure
+
+  alerting:
+    container_name: alerts
+    image: saibe1111/grafana-to-ntfy
+    <<: *common
+    environment:
+      <<: *env-vars
+      NTFY_TOPIC: server
+      NTFY_SERVER: http://ntfy
+    labels:
+      traefik.enable: false
 
