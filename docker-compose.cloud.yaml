@@ -13,18 +13,14 @@ x-common-cloud: &cloud
       VIKUNJA_SERVICE_JWTSECRET: ${JWT_SECRET}
       VIKUNJA_SERVICE_FRONTENDURL: https://todo.${DOMAIN}/
       VIKUNJA_SERVICE_TIMEZONE: ${TIMEZONE}
-      VIKUNJA_MAILER_ENABLED: true
-      VIKUNJA_MAILER_HOST: ${SMTP_HOST}
-      VIKUNJA_MAILER_USERNAME: ${SMTP_USER}
-      VIKUNJA_MAILER_PASSWORD: ${SMTP_PASS}
-      VIKUNJA_MAILER_FROMEMAIL: todo@${DOMAIN}
-      VIKUNJA_MAILER_PORT: 25
       VIKUNJA_LOG_LEVEL: DEBUG
       VIKUNJA_METRICS_ENABLED: true
       VIKUNJA_LOG_EVENTS: stdout
       VIKUNJA_LOG_EVENTSLEVEL: info
       VIKUNJA_LOG_MAIL: stdout
       VIKUNJA_LOG_MAILLEVEL: info
+      VIKUNJA_CORS_ENABLE: true
+      VIKUNJA_CORS_ORIGINS: "https://todo.${DOMAIN}"
     volumes:
       - config-vikunja-conf:/etc/vikunja
       - config-vikunja:/app/vikunja/files
@@ -40,7 +36,7 @@ x-common-cloud: &cloud
           "--spider",
           "http://localhost:3456/api/v1/info",
         ]
-      interval: 1m30s
+      interval: 30s
       timeout: 30s
       retries: 5
       start_period: 30s
@@ -61,16 +57,13 @@ x-common-cloud: &cloud
     environment:
       <<: *env-vars
       VIKUNJA_API_URL: https://todo.${DOMAIN}/api/v1
-    ports:
-      - 127.0.0.1:3000:3000
     healthcheck:
       test: ["CMD-SHELL", "curl --fail localhost"]
-      interval: 1m30s
+      interval: 30s
       timeout: 30s
       retries: 5
       start_period: 30s
     labels:
-      traefik.http.routers.todo.rule: Host(`todo.${DOMAIN}`)
       traefik.http.routers.todo.entrypoints: websecure
       traefik.http.routers.todo.tls: true
       traefik.http.routers.todo.tls.certResolver: letsencrypt
@@ -93,7 +86,6 @@ x-common-cloud: &cloud
       timeout: 3s
       retries: 3
     labels:
-      traefik.http.routers.sync.rule: Host(`sync.${DOMAIN}`)
       traefik.http.routers.sync.entrypoints: websecure
       traefik.http.services.sync.loadbalancer.server.port: 8384
       traefik.http.routers.sync.tls: true
@@ -101,8 +93,7 @@ x-common-cloud: &cloud
 
   vaultwarden:
     image: vaultwarden/server
-    container_name: vaultwarden
-    hostname: vault.${DOMAIN}
+    container_name: vault
     <<: *common
     volumes:
       - config-vaultwarden:/data
@@ -120,7 +111,6 @@ x-common-cloud: &cloud
       SMTP_FROM: vault@${DOMAIN}
       DATABASE_URL: postgresql://${DATABASE_USERNAME}:${DATABASE_PASSWORD}@postgres:5432/vaultwarden
     labels:
-      traefik.http.routers.vaultwarden.rule: Host(`vault.${DOMAIN}`)
       traefik.http.services.vaultwarden.loadbalancer.server.port: 8800
       traefik.http.routers.vaultwarden.entrypoints: websecure
       traefik.http.routers.vaultwarden.tls: true
@@ -128,8 +118,7 @@ x-common-cloud: &cloud
 
   freshrss:
     image: lscr.io/linuxserver/freshrss
-    container_name: freshrss
-    hostname: rss.${DOMAIN}
+    container_name: rss
     <<: *common
     volumes:
       - config-freshrss:/config
@@ -139,50 +128,18 @@ x-common-cloud: &cloud
           "CMD-SHELL",
           "curl -fsS 'http://localhost/i/' | grep -q 'jsonVars' || exit 1",
         ]
-      interval: 1m30s
+      interval: 30s
       timeout: 30s
       retries: 5
       start_period: 30s
     labels:
-      traefik.http.routers.freshrss.rule: Host(`rss.${DOMAIN}`)
       traefik.http.routers.freshrss.entrypoints: websecure
       traefik.http.routers.freshrss.tls: true
       traefik.http.routers.freshrss.tls.certResolver: letsencrypt
 
-  pocket:
-    image: sissbruecker/linkding
-    container_name: pocket
-    hostname: pocket.${DOMAIN}
-    <<: *common
-    environment:
-      <<: *env-vars
-      LD_DB_ENGINE: postgres
-      LD_DB_USER: ${DATABASE_USERNAME}
-      LD_DB_PASSWORD: ${DATABASE_PASSWORD}
-      LD_DB_DATABASE: pocket
-      LD_DB_HOST: postgres
-      LD_DB_PORT: 5432
-    volumes:
-      - config-pocket:/etc/linkding/data
-    healthcheck:
-      test: ["CMD-SHELL", "curl --fail localhost:9090"]
-      interval: 1m
-      timeout: 3s
-    depends_on:
-      - postgres
-    ulimits:
-      nofile: 1048576
-    labels:
-      traefik.http.routers.pocket.rule: Host(`pocket.${DOMAIN}`)
-      traefik.http.routers.pocket.entrypoints: websecure
-      traefik.http.services.pocket.loadbalancer.server.port: 9090
-      traefik.http.routers.pocket.tls: true
-      traefik.http.routers.pocket.tls.certResolver: letsencrypt
-
   wiki:
     image: outlinewiki/outline
     container_name: wiki
-    hostname: wiki.${DOMAIN}
     env_file: ${CONFIG_DIR}/outline/config.env
     <<: *common
     depends_on:
@@ -191,12 +148,11 @@ x-common-cloud: &cloud
       - minio
     healthcheck:
       test: ["CMD-SHELL", "/bin/netstat -pant | /bin/grep ':3000'"]
-      interval: 1m30s
+      interval: 30s
       timeout: 30s
       retries: 5
       start_period: 30s
     labels:
-      traefik.http.routers.outline.rule: Host(`wiki.${DOMAIN}`)
       traefik.http.services.outline.loadbalancer.server.port: 3000
       traefik.http.routers.outline.entrypoints: websecure
       traefik.http.routers.outline.tls: true
@@ -208,33 +164,35 @@ x-common-cloud: &cloud
     dns:
       - ${IP}
     <<: *logging
+    depends_on:
+      - mosquitto
     environment:
       <<: *env-vars
       DOCKER_MODS: "linuxserver/mods:homeassistant-hacs|linuxserver/mods:universal-package-install"
       INSTALL_PACKAGES: "openldap-clients|curl"
     network_mode: host
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "--no-verbose",
+          "--tries=1",
+          "--spider",
+          "http://localhost:8123/manifest.json",
+        ]
+      interval: 30s
+      timeout: 30s
+      retries: 5
+      start_period: 30s
     volumes:
       - config-home-assistant:/config
       - /etc/localtime:/etc/localtime:ro
     labels:
       traefik.enable: false
 
-  homebox:
-    image: ghcr.io/hay-kot/homebox
-    container_name: homebox
-    hostname: manage.${DOMAIN}
-    <<: *common
-    volumes:
-      - config-homebox-data:/data/
-    labels:
-      traefik.http.routers.homebox.rule: Host(`manage.${DOMAIN}`)
-      traefik.http.services.homebox.loadbalancer.server.port: 7745
-      traefik.http.routers.homebox.entrypoints: websecure
-      traefik.http.routers.homebox.tls: true
-      traefik.http.routers.homebox.tls.certResolver: letsencrypt
-
   mealie:
-    container_name: mealie
+    container_name: meals
     image: hkotel/mealie:omni-nightly
     hostname: meals.${DOMAIN}
     <<: *common
@@ -267,65 +225,53 @@ x-common-cloud: &cloud
     volumes:
       - config-mealie-data:/app/data
     labels:
-      traefik.http.routers.mealie.rule: Host(`meals.${DOMAIN}`)
       traefik.http.services.mealie.loadbalancer.server.port: 3000
       traefik.http.routers.mealie.entrypoints: websecure
       traefik.http.routers.mealie.tls: true
       traefik.http.routers.mealie.tls.certResolver: letsencrypt
 
-  firefly:
-    image: fireflyiii/core
-    container_name: firefly
-    hostname: finances.${DOMAIN}
+  frigate:
+    container_name: frigate
+    image: ghcr.io/blakeblackshear/frigate:stable
+    shm_size: 128mb # update for your cameras based on calculation above
     <<: *common
     depends_on:
-      - postgres
+      - mosquitto
+    devices:
+      - /dev/dri/renderD128 # for hwaccel
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - config-frigate:/config
+      - media-camera:/media/frigate
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "curl -fsS 'http://localhost:5000/api/' | grep -q -i 'alive and healthy' || exit 1",
+        ]
+      interval: 30s
+      timeout: 30s
+      retries: 5
+      start_period: 30s
     environment:
       <<: *env-vars
-      DB_HOST: postgres
-      DB_PORT: 5432
-      DB_CONNECTION: pgsql
-      DB_DATABASE: firefly
-      DB_USERNAME: ${DATABASE_USERNAME}
-      DB_PASSWORD: ${DATABASE_PASSWORD}
-      APP_KEY: ${FIREFLY_APP_KEY}
-      CACHE_DRIVER: redis
-      SESSION_DRIVER: redis
-      REDIS_HOST: redis
-      REDIS_PORT: 6379
-      TRUSTED_PROXIES: "**"
-      APP_URL: "https://finances.${DOMAIN}"
-      STATIC_CRON_TOKEN: ${FIREFLY_APP_KEY}
-      AUTHENTICATION_GUARD: remote_user_guard
-      AUTHENTICATION_GUARD_HEADER: HTTP_REMOTE_USER
-      AUTHENTICATION_GUARD_EMAIL: Remote-Email
-    volumes:
-      - config-firefly:/var/www/html/storage/upload
+      LIBVA_DRIVER_NAME: radeonsi
+      FRIGATE_RTSP_PASSWORD: "password"
+      FRIGATE_MQTT_USERNAME: ${FRIGATE_MQTT_USERNAME}
+      FRIGATE_MQTT_PASSWORD: ${FRIGATE_MQTT_PASSWORD}
+      FRIGATE_REOLINK_USERNAME: ${FRIGATE_REOLINK_USERNAME}
+      FRIGATE_REOLINK_PASSWORD: ${FRIGATE_REOLINK_PASSWORD}
+      FRIGATE_REOLINK_IP: ${FRIGATE_REOLINK_IP}
+    ports:
+      - 1984:1984/tcp
+      - 1984:1984/udp
+      - 5000:5000
+      - 8554:8554 # RTSP feeds
+      - 8555:8555/tcp # WebRTC over tcp
+      - 8555:8555/udp # WebRTC over udp
     labels:
-      traefik.http.routers.firefly.rule: Host(`finances.${DOMAIN}`)
-      traefik.http.services.firefly.loadbalancer.server.port: 8080
-      traefik.http.routers.firefly.entrypoints: websecure
-      traefik.http.routers.firefly.tls: true
-      traefik.http.routers.firefly.tls.certResolver: letsencrypt
-      traefik.http.routers.firefly.middlewares: firefly-headers,authelia
-      traefik.http.middlewares.firefly-headers.headers.customrequestheaders.X-Forwarded-Proto: https
-
-  firefly-cron:
-    image: alpine
-    container_name: firefly-cron
-    command: sh -c "echo \"0 3 * * * wget -qO- http://firefly:8080/api/v1/cron/${FIREFLY_APP_KEY}\" | crontab - && crond -f -L /dev/stdout"
-    <<: *common
-    labels:
-      traefik.enable: false
-
-  speedtest:
-    container_name: openspeedtest
-    image: openspeedtest/latest
-    <<: *common
-    labels:
-      traefik.http.routers.speedtest.rule: Host(`speed.${DOMAIN}`)
-      traefik.http.services.speedtest.loadbalancer.server.port: 3000
-      traefik.http.routers.speedtest.entrypoints: websecure
-      traefik.http.routers.speedtest.tls: true
-      traefik.http.routers.speedtest.tls.certResolver: letsencrypt
+      traefik.http.services.frigate.loadbalancer.server.port: 5000
+      traefik.http.routers.frigate.entrypoints: websecure
+      traefik.http.routers.frigate.tls: true
+      traefik.http.routers.frigate.tls.certResolver: letsencrypt
 

@@ -66,14 +66,14 @@ volumes:
     driver_opts:
       <<: *driver-opts
       device: ${CONFIG_DIR}/dnscrypt
-  config-firefly:
-    driver_opts:
-      <<: *driver-opts
-      device: ${CONFIG_DIR}/firefly
   config-freshrss:
     driver_opts:
       <<: *driver-opts
       device: ${CONFIG_DIR}/freshrss
+  config-frigate:
+    driver_opts:
+      <<: *driver-opts
+      device: ${CONFIG_DIR}/frigate
   config-grafana:
     driver_opts:
       <<: *driver-opts
@@ -90,10 +90,10 @@ volumes:
     driver_opts:
       <<: *driver-opts
       device: ${CONFIG_DIR}/homeassistant
-  config-homebox-data:
+  config-immich:
     driver_opts:
       <<: *driver-opts
-      device: ${CONFIG_DIR}/homebox/data
+      device: ${CONFIG_DIR}/immich
   config-jellyfin:
     driver_opts:
       <<: *driver-opts
@@ -134,6 +134,10 @@ volumes:
     driver_opts:
       <<: *driver-opts
       device: ${CONFIG_DIR}/mealie/data
+  config-mosquitto:
+    driver_opts:
+      <<: *driver-opts
+      device: ${CONFIG_DIR}/mqtt
   config-ntfy:
     driver_opts:
       <<: *driver-opts
@@ -146,14 +150,14 @@ volumes:
     driver_opts:
       <<: *driver-opts
       device: ${CONFIG_DIR}/outline/storage
+  config-pg-vectors:
+    driver_opts:
+      <<: *driver-opts
+      device: ${CONFIG_DIR}/pg-vectors
   config-piper:
     driver_opts:
       <<: *driver-opts
       device: ${CONFIG_DIR}/piper
-  config-pocket:
-    driver_opts:
-      <<: *driver-opts
-      device: ${CONFIG_DIR}/pocket/config
   config-podgrab:
     driver_opts:
       <<: *driver-opts
@@ -206,6 +210,14 @@ volumes:
     driver_opts:
       <<: *driver-opts
       device: ${CONFIG_DIR}/syncthing
+  config-title:
+    driver_opts:
+      <<: *driver-opts
+      device: ${CONFIG_DIR}/title-maker
+  config-title-logs:
+    driver_opts:
+      <<: *driver-opts
+      device: ${CONFIG_DIR}/title-maker/logs
   config-traefik:
     driver_opts:
       <<: *driver-opts
@@ -238,6 +250,10 @@ volumes:
     driver_opts:
       <<: *driver-opts
       device: ${DOWNLOAD_DIR}/Music
+  downloads-pictures:
+    driver_opts:
+      <<: *driver-opts
+      device: ${DATA_DIR}/Pictures
   media:
     driver_opts:
       <<: *driver-opts
@@ -246,6 +262,10 @@ volumes:
     driver_opts:
       <<: *driver-opts
       device: ${DATA_DIR}/Books
+  media-camera:
+    driver_opts:
+      <<: *driver-opts
+      device: ${DATA_DIR}/Camera
   media-movies:
     driver_opts:
       <<: *driver-opts
@@ -254,6 +274,10 @@ volumes:
     driver_opts:
       <<: *driver-opts
       device: ${DATA_DIR}/Music
+  media-photos:
+    driver_opts:
+      <<: *driver-opts
+      device: ${DATA_DIR}/Photos
   media-podcasts:
     driver_opts:
       <<: *driver-opts

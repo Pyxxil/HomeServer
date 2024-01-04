@@ -1,9 +1,14 @@
 x-common-admin: &admin
   traefik:
-    container_name: traefik
+    container_name: dash
     image: traefik
     <<: *common
     command:
+      - --accesslog=true
+      - --accesslog.format=json
+      - --accesslog.filters.statuscodes=200,300-302
+      - --accesslog.filters.retryattempts
+      - --accesslog.filters.minduration=10ms
       - --api=true
       - --api.dashboard=true
       - --certificatesresolvers.letsencrypt.acme.caserver=https://acme-v02.api.letsencrypt.org/directory
@@ -27,19 +32,27 @@ x-common-admin: &admin
       - --entrypoints.websecure.forwardedHeaders.insecure=false
       - --entrypoints.websecure.proxyProtocol.insecure=false
       - --experimental.http3=true
+      - --log.level=info
       - --ping=true
       - --metrics.prometheus=true
       - --metrics.prometheus.addServicesLabels=true
       - --metrics.prometheus.addrouterslabels=true
       - --metrics.prometheus.addEntryPointsLabels=true
+      - --providers.docker.defaultRule=Host(`{{ .ContainerName }}.${DOMAIN}`)
       - --providers.docker=true
       - --providers.docker.watch=true
       - --providers.docker.exposedbydefault=true
       - --providers.docker.network=web
       - --providers.file.directory=/config
+      - --tracing=true
+      - --tracing.jaeger=true
+      - --tracing.jaeger.samplingServerURL=http://tracing:5778/sampling
+      - --tracing.jaeger.localAgentHostPort=tracing:6831
+      - --tracing.jaeger.collector.endpoint=http://tracing:14268/api/traces?format=jaeger.thrift
     environment:
       <<: *env-vars
       CLOUDFLARE_DNS_API_TOKEN: ${CLOUDFLARE_DNS_API_TOKEN}
+      OTEL_SERVICE_NAME: traefik
     ports:
       - 80:80
       - 443:443/tcp
@@ -63,29 +76,29 @@ x-common-admin: &admin
       - auth
     labels:
       traefik.http.routers.dashboard.rule: Host(`dash.${DOMAIN}`)
+      traefik.http.middlewares.auth.forwardauth.address: http://auth:9091/api/verify?rd=https://auth.${DOMAIN}
+      traefik.http.middlewares.auth.forwardauth.trustForwardHeader: true
+      traefik.http.middlewares.auth.forwardauth.authResponseHeaders: Remote-User,Remote-Groups,Remote-Name,Remote-Email
       traefik.http.routers.dashboard.service: api@internal
-      traefik.http.routers.dashboard.middlewares: authelia
+      traefik.http.routers.dashboard.middlewares: auth
       traefik.http.routers.dashboard.tls: true
       traefik.http.routers.dashboard.tls.certResolver: letsencrypt
+      traefik.http.routers.dashboard.entrypoints: websecure
       traefik.http.routers.http-catchall.rule: hostregexp(`{host:.+}`)
       traefik.http.routers.http-catchall.entrypoints: web
       traefik.http.routers.http-catchall.middlewares: redirect-to-https
       traefik.http.middlewares.redirect-to-https.redirectscheme.scheme: https
       traefik.http.middlewares.redirect-to-https.redirectScheme.permanent: true
-      traefik.http.middlewares.authelia.forwardauth.address: http://authelia:9091/api/verify?rd=https://auth.${DOMAIN}
-      traefik.http.middlewares.authelia.forwardauth.trustForwardHeader: true
-      traefik.http.middlewares.authelia.forwardauth.authResponseHeaders: Remote-User,Remote-Groups,Remote-Name,Remote-Email
 
   auth:
     image: authelia/authelia
-    container_name: authelia
+    container_name: auth
     <<: *common
     depends_on:
       - ldap
     volumes:
       - config-authelia:/config
     labels:
-      traefik.http.routers.auth.rule: Host(`auth.${DOMAIN}`)
       traefik.http.services.auth.loadbalancer.server.port: 9091
       traefik.http.routers.auth.entrypoints: websecure
       traefik.http.routers.auth.tls: true
@@ -102,6 +115,12 @@ x-common-admin: &admin
     ports:
       - 389:389
       - 636:636
+    healthcheck:
+      test: ["CMD-SHELL", "ldapsearch -Y EXTERNAL -H ldapi:/// | grep -i 'numresponses' || exit 1"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
     environment:
       <<: *env-vars
       LDAP_ORGANISATION: ${ORGANISATION}
@@ -117,10 +136,16 @@ x-common-admin: &admin
 
   ldap-user-manager:
     image: wheelybird/ldap-user-manager
-    container_name: ldap-user-manager
+    container_name: account
     <<: *common
     depends_on:
       - ldap
+    healthcheck:
+      test: ["CMD-SHELL", "curl --fail localhost:80"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
     environment:
       <<: *env-vars
       SERVER_HOSTNAME: account.${DOMAIN}
@@ -144,7 +169,6 @@ x-common-admin: &admin
       EMAIL_FROM_ADDRESS: account@${DOMAIN}
       EMAIL_DOMAIN: ${DOMAIN}
     labels:
-      traefik.http.routers.ldap-user-manager.rule: Host(`account.${DOMAIN}`)
       traefik.http.services.ldap-user-manager.loadbalancer.server.port: 80
       traefik.http.routers.ldap-user-manager.entrypoints: websecure
       traefik.http.routers.ldap-user-manager.tls: true
@@ -181,13 +205,12 @@ x-common-admin: &admin
       - /var/run/docker.sock:/var/run/docker.sock
     environment:
       <<: *env-vars
-      DIUN_WATCH_WORKERS: 20
-      DIUN_WATCH_SCHEDULE: 0 */6 * * *
-      DIUN_WATCH_JITTER: 30s
+      DIUN_WATCH_SCHEDULE: 0 */12 * * *
       DIUN_PROVIDERS_DOCKER: true
       DIUN_PROVIDERS_DOCKER_WATCHBYDEFAULT: true
-      DIUN_NOTIF_NTFY_ENDPOINT: https://ntfy.${DOMAIN}
+      DIUN_NOTIF_NTFY_ENDPOINT: http://ntfy
       DIUN_NOTIF_NTFY_TOPIC: server
+      DIUN_WATCH_RUNONSTARTUP: true
     labels:
       traefik.enable: false
 
@@ -201,17 +224,16 @@ x-common-admin: &admin
       - config-ntfy-cache:/var/cache/ntfy
       - config-ntfy:/etc/ntfy
     healthcheck:
-        test: ["CMD-SHELL", "wget -q --tries=1 http://localhost:80/v1/health -O - | grep -Eo '\"healthy\"\\s*:\\s*true' || exit 1"]
-        interval: 60s
-        timeout: 10s
-        retries: 3
-        start_period: 40s
+      test: ["CMD-SHELL", "wget -q --tries=1 http://localhost:80/v1/health -O - | grep -Eo '\"healthy\"\\s*:\\s*true' || exit 1"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
     labels:
-      traefik.http.routers.ntfy.rule: Host(`ntfy.${DOMAIN}`)
+      traefik.http.routers.ntfy.entrypoints: websecure
       traefik.http.services.ntfy.loadbalancer.server.port: 80
-      traefik.tcp.routers.ntfy.tls: true
-      traefik.tcp.routers.ntfy.tls.certresolver: letsencrypt
-      traefik.tcp.routers.ntfy.entrypoints: websecure
+      traefik.http.routers.ntfy.tls: true
+      traefik.http.routers.ntfy.tls.certresolver: letsencrypt
 
   alerting:
     container_name: alerts

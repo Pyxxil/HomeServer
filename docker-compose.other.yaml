@@ -10,20 +10,8 @@ x-common-other: &other
     labels:
       traefik.enable: false
 
-  it-tools:
-    container_name: it-tools
-    image: ghcr.io/corentinth/it-tools
-    hostname: tools.${DOMAIN}
-    <<: *common
-    labels:
-      traefik.http.routers.tools.rule: Host(`tools.${DOMAIN}`)
-      traefik.http.services.tools.loadbalancer.server.port: 80
-      traefik.http.routers.tools.entrypoints: websecure
-      traefik.http.routers.tools.tls: true
-      traefik.http.routers.tools.tls.certResolver: letsencrypt
-
   archive-warrior:
-    container_name: archive-warrior
+    container_name: warrior
     image: atdr.meo.ws/archiveteam/warrior-dockerfile
     hostname: warrior.${DOMAIN}
     <<: *common
@@ -36,7 +24,6 @@ x-common-other: &other
       - 9.9.9.9
     labels:
       traefik.port: 8001
-      traefik.http.routers.warrior.rule: Host(`warrior.${DOMAIN}`)
       traefik.http.services.warrior.loadbalancer.server.port: 8001
       traefik.http.routers.warrior.entrypoints: websecure
       traefik.http.routers.warrior.tls: true

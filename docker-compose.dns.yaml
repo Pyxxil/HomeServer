@@ -66,7 +66,7 @@ x-common-dns: &dns
       traefik.http.routers.blackhole.tls.certResolver: letsencrypt
 
   adguard:
-    container_name: adguard
+    container_name: dns
     image: adguard/adguardhome:beta
     <<: *common
     restart: always
@@ -95,12 +95,11 @@ x-common-dns: &dns
       timeout: 30s
       retries: 3
     labels:
-      traefik.http.routers.adguard.rule: Host(`dns.${DOMAIN}`)
       traefik.http.services.adguard.loadbalancer.server.port: 3000
       traefik.http.routers.adguard.entrypoints: websecure
       traefik.http.routers.adguard.tls: true
       traefik.http.routers.adguard.tls.certResolver: letsencrypt
-      traefik.http.routers.adguard.middlewares: authelia
+      traefik.http.routers.adguard.middlewares: auth
 
   letsblockit:
     image: ghcr.io/letsblockit/server
@@ -115,10 +114,9 @@ x-common-dns: &dns
       LETSBLOCKIT_AUTH_METHOD: proxy
       LETSBLOCKIT_AUTH_PROXY_HEADER_NAME: Remote-User
     labels:
-      traefik.http.routers.letsblockit.rule: Host(`letsblockit.${DOMAIN}`)
       traefik.http.services.letsblockit.loadbalancer.server.port: 8765
       traefik.http.routers.letsblockit.entrypoints: websecure
       traefik.http.routers.letsblockit.tls: true
       traefik.http.routers.letsblockit.tls.certResolver: letsencrypt
-      traefik.http.routers.letsblockit.middlewares: authelia
+      traefik.http.routers.letsblockit.middlewares: auth
 

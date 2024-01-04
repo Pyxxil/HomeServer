@@ -20,7 +20,7 @@ x-common-media: &media
       traefik.http.services.radarr.loadbalancer.server.port: 7878
       traefik.http.routers.radarr.tls: true
       traefik.http.routers.radarr.tls.certResolver: letsencrypt
-      traefik.http.routers.radarr.middlewares: authelia
+      traefik.http.routers.radarr.middlewares: auth
 
   sonarr:
     image: lscr.io/linuxserver/sonarr:develop
@@ -43,12 +43,11 @@ x-common-media: &media
       traefik.http.services.sonarr.loadbalancer.server.port: 8989
       traefik.http.routers.sonarr.tls: true
       traefik.http.routers.sonarr.tls.certResolver: letsencrypt
-      traefik.http.routers.sonarr.middlewares: authelia
+      traefik.http.routers.sonarr.middlewares: auth
 
   readarr:
     image: lscr.io/linuxserver/readarr:develop
     container_name: readarr
-    hostname: readarr.${DOMAIN}
     <<: *common
     volumes:
       - config-scripts:/scripts
@@ -67,31 +66,29 @@ x-common-media: &media
       traefik.http.routers.readarr.entrypoints: websecure
       traefik.http.routers.readarr.tls: true
       traefik.http.routers.readarr.tls.certResolver: letsencrypt
-      traefik.http.routers.readarr.middlewares: authelia
+      traefik.http.routers.readarr.middlewares: auth
 
   metube:
     image: alexta69/metube
     container_name: youtube
-    hostname: youtube.${DOMAIN}
     <<: *common
     volumes:
       - media-youtube:/downloads
     environment:
       <<: *env-vars
       OUTPUT_TEMPLATE: "%(uploader)s - %(upload_date)s - %(title)s [%(id)s].%(ext)s"
-      YTDL_OPTIONS: '{ "writeinfojson": true, "updatetime": false, "postprocessors": [{ "key": "Exec", "exec_cmd": "chmod 0664", "when": "after_move" }] }'
+      YTDL_OPTIONS: '{ "writeinfojson": true, "updatetime": false, "prefer_free_formats": true, "concurrent_fragment_downloads": 4, "ignoreerrors": true, "postprocessors": [{ "key": "Exec", "exec_cmd": "chmod 0664", "when": "after_move" }, { "key": "FFmpegMetadata", "add_chapters": true }] }'
+      DEFAULT_THEME: dark
     labels:
-      traefik.http.routers.youtube.rule: Host(`youtube.${DOMAIN}`)
       traefik.http.routers.youtube.entrypoints: websecure
       traefik.http.services.youtube.loadBalancer.server.port: 8081
       traefik.http.routers.youtube.tls: true
       traefik.http.routers.youtube.tls.certResolver: letsencrypt
-      traefik.http.routers.youtube.middlewares: authelia
+      traefik.http.routers.youtube.middlewares: auth
 
   prowlarr:
     image: lscr.io/linuxserver/prowlarr:develop
-    container_name: prowlarr
-    hostname: prowlarr.${DOMAIN}
+    container_name: indexers
     <<: *common
     volumes:
       - config-prowlarr:/config
@@ -100,24 +97,20 @@ x-common-media: &media
       interval: 45s
       timeout: 30s
       retries: 3
-    ports:
-      - 9696:9696
     labels:
-      traefik.http.routers.prowlarr.rule: Host(`indexers.${DOMAIN}`)
       traefik.http.routers.prowlarr.entrypoints: websecure
       traefik.http.services.prowlarr.loadbalancer.server.port: 9696
       traefik.http.routers.prowlarr.tls: true
       traefik.http.routers.prowlarr.tls.certResolver: letsencrypt
-      traefik.http.routers.prowlarr.middlewares: authelia
+      traefik.http.routers.prowlarr.middlewares: auth
 
   recyclarr:
     image: ghcr.io/recyclarr/recyclarr
     container_name: recyclarr
-    hostname: recyclarr.${DOMAIN}
+    <<: *common
     depends_on:
       - sonarr
       - radarr
-    <<: *common
     user: ${PUID}:${PGID}
     volumes:
       - config-recyclarr:/config
@@ -125,22 +118,33 @@ x-common-media: &media
       traefik.enable: false
 
   flaresolverr:
-    image: ghcr.io/flaresolverr/flaresolverr:v3.3.2
+    image: ghcr.io/flaresolverr/flaresolverr
     container_name: flaresolverr
     <<: *common
+    environment:
+      <<: *env-vars
+      PROMETHEUS_ENABLED: true
+    healthcheck:
+      test: ["CMD-SHELL", "curl --fail localhost:8191/health"]
+      interval: 45s
+      timeout: 30s
+      retries: 3
     labels:
       traefik.enable: false
 
   qbittorrent:
     image: lscr.io/linuxserver/qbittorrent
-    container_name: qbittorrent
-    hostname: downloads.${DOMAIN}
+    container_name: downloads
     <<: *common
     environment:
       <<: *env-vars
       WEBUI_PORT: 8980
       DOCKER_MODS: linuxserver/mods:universal-stdout-logs
       LOGS_TO_STDOUT: "/config/qBittorrent/logs/qbittorrent.log"
+    deploy:
+      resources:
+        limits:
+          memory: 2G
     volumes:
       - config-qbittorrent:/config
       - downloads:/downloads
@@ -151,7 +155,6 @@ x-common-media: &media
       retries: 5
       start_period: 30s
     labels:
-      traefik.http.routers.qbittorrent.rule: Host(`downloads.${DOMAIN}`)
       traefik.http.routers.qbittorrent.entrypoints: websecure
       traefik.http.services.qbittorrent.loadbalancer.server.port: 8980
       traefik.http.services.qbittorrent.loadbalancer.passhostheader: false
@@ -160,15 +163,17 @@ x-common-media: &media
       traefik.http.middlewares.qbittorrent-headers.headers.customrequestheaders.X-Frame-Options: SAMEORIGIN
       traefik.http.middlewares.qbittorrent-headers.headers.customrequestheaders.Referer: ""
       traefik.http.middlewares.qbittorrent-headers.headers.customrequestheaders.Origin: ""
-      traefik.http.routers.qbittorrent.middlewares: qbittorrent-headers,authelia
+      traefik.http.routers.qbittorrent.middlewares: qbittorrent-headers,auth
 
   jellyseerr:
-    image: fallenbagel/jellyseerr:develop
-    container_name: jellyseerr
-    hostname: request.${DOMAIN}
+    image: ghcr.io/fallenbagel/jellyseerr:develop
+    container_name: request
     <<: *common
     volumes:
       - config-jellyseerr:/app/config
+    environment:
+      <<: *env-vars
+      LOG_LEVEL: info
     healthcheck:
       test:
         [
@@ -184,7 +189,6 @@ x-common-media: &media
       retries: 5
       start_period: 30s
     labels:
-      traefik.http.routers.jellyseerr.rule: Host(`request.${DOMAIN}`)
       traefik.http.routers.jellyseerr.entrypoints: websecure
       traefik.http.services.jellyseerr.loadbalancer.server.port: 5055
       traefik.http.routers.jellyseerr.tls: true
@@ -193,7 +197,6 @@ x-common-media: &media
   watch:
     container_name: watch
     image: lscr.io/linuxserver/jellyfin
-    hostname: watch.${DOMAIN}
     <<: *common
     environment:
       <<: *env-vars
@@ -201,6 +204,8 @@ x-common-media: &media
       INSTALL_PACKAGES: python3
       INSTALL_PIP_PACKAGES: yt-dlp
       JELLYFIN_PublishedServerUrl: https://watch.${DOMAIN}
+      JELLYFIN_FFmpeg__probesize: 50000000
+      JELLYFIN_FFmpeg__analyzeduration: 2000000000
     volumes:
       - config-jellyfin:/config
       - config-jellyfin-cache:/cache
@@ -212,8 +217,12 @@ x-common-media: &media
     group_add:
       - "989" # getent group render | cut -d: -f3
       - "986" # getent group video | cut -d: -f3
+      - video
+    security_opt:
+      - seccomp:unconfined
     devices:
       - /dev/dri:/dev/dri
+      - /dev/kfd:/dev/kfd
     healthcheck:
       test: ["CMD-SHELL", "curl --fail localhost:8096"]
       interval: 1m30s
@@ -222,21 +231,20 @@ x-common-media: &media
       start_period: 30s
     labels:
       traefik.http.services.watch.loadBalancer.server.port: 8096
-      traefik.http.routers.watch.rule: Host(`watch.${DOMAIN}`)
       traefik.http.routers.watch.entrypoints: websecure
       traefik.http.routers.watch.tls: true
       traefik.http.routers.watch.tls.certResolver: letsencrypt
       traefik.http.middlewares.csp.headers.customResponseHeaders.Content-Security-Policy-Report-Only: >-
-        default-src https: data: blob:; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://site-assets.fontawesome.com;
-        script-src 'self' 'unsafe-inline';
+        default-src https: data: blob:;
+        style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://site-assets.fontawesome.com https://fonts.googleapis.com https://ctalvio.github.io;
+        script-src 'self' 'unsafe-inline' blob:;
         worker-src 'self' blob:; connect-src 'self' https:;
         object-src 'none'; frame-ancestors 'self'
       traefik.http.routers.watch.middlewares: csp
 
   podgrab:
     image: akhilrex/podgrab
-    container_name: podgrab
-    hostname: podcasts.${DOMAIN}
+    container_name: podcasts
     <<: *common
     environment:
       <<: *env-vars
@@ -244,18 +252,30 @@ x-common-media: &media
     volumes:
       - config-podgrab:/config
       - media-podcasts:/assets
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "--no-verbose",
+          "--tries=1",
+          "--spider",
+          "http://localhost:8080",
+        ]
+      interval: 1m30s
+      timeout: 30s
+      retries: 5
+      start_period: 30s
     labels:
-      traefik.http.routers.podgrab.rule: Host(`podcasts.${DOMAIN}`)
       traefik.http.services.podgrab.loadBalancer.server.port: 8080
       traefik.http.routers.podgrab.entrypoints: websecure
       traefik.http.routers.podgrab.tls: true
       traefik.http.routers.podgrab.tls.certResolver: letsencrypt
-      traefik.http.routers.podgrab.middlewares: authelia
+      traefik.http.routers.podgrab.middlewares: auth
 
   calibre:
     container_name: calibre
     image: lscr.io/linuxserver/calibre
-    hostname: calibre.${DOMAIN}
     <<: *common
     volumes:
       - media-books:/config
@@ -266,27 +286,76 @@ x-common-media: &media
       retries: 5
       start_period: 30s
     labels:
-      traefik.http.routers.calibre.rule: Host(`calibre.${DOMAIN}`)
       traefik.http.services.calibre.loadBalancer.server.port: 8080
       traefik.http.routers.calibre.entrypoints: websecure
       traefik.http.routers.calibre.tls: true
       traefik.http.routers.calibre.tls.certResolver: letsencrypt
-      traefik.http.routers.calibre.middlewares: authelia
+      traefik.http.routers.calibre.middlewares: auth
 
   beets:
     image: lscr.io/linuxserver/beets:nightly
     container_name: beets
-    hostname: beets.${DOMAIN}
     <<: *common
     volumes:
       - config-beets:/config
       - media-music:/music
       - downloads-music:/downloads
     labels:
-      traefik.http.routers.beets.rule: Host(`beets.${DOMAIN}`)
       traefik.http.services.beets.loadBalancer.server.port: 8337
       traefik.http.routers.beets.entrypoints: websecure
       traefik.http.routers.beets.tls: true
       traefik.http.routers.beets.tls.certResolver: letsencrypt
-      traefik.http.routers.beets.middlewares: authelia
+      traefik.http.routers.beets.middlewares: auth
+
+  immich:
+    image: ghcr.io/imagegenius/immich
+    container_name: photos
+    <<: *common
+    environment:
+      <<: *env-vars
+      DB_HOSTNAME: pg-vectors
+      DB_USERNAME: ${DATABASE_USERNAME}
+      DB_PASSWORD: ${DATABASE_PASSWORD}
+      DB_DATABASE_NAME: immich
+      REDIS_HOSTNAME: redis
+      DB_PORT: 5432
+      REDIS_PORT: 6379
+      MACHINE_LEARNING_WORKERS: 1
+      MACHINE_LEARNING_WORKER_TIMEOUT: 120
+    devices:
+      - /dev/dri/renderD128:/dev/dri/renderD128
+    healthcheck:
+      test: ["CMD-SHELL", "curl --fail localhost:8080/api/server-info/ping | grep 'pong' || exit 1"]
+      interval: 1m30s
+      timeout: 30s
+      retries: 5
+      start_period: 30s
+    depends_on:
+      - pg-vectors
+      - redis
+    volumes:
+      - config-immich:/config
+      - media-photos:/photos
+      - downloads-pictures:/import:ro #optional
+    labels:
+      traefik.http.services.immich.loadBalancer.server.port: 8080
+      traefik.http.routers.immich.entrypoints: websecure
+      traefik.http.routers.immich.tls: true
+      traefik.http.routers.immich.tls.certResolver: letsencrypt
+
+  title-card-maker:
+    image: collinheist/titlecardmaker
+    container_name: title-card-maker
+    <<: *common
+    volumes:
+      - config-title:/config
+      - config-title-logs:/maker/logs
+      - media-shows:/Television Shows
+    environment:
+      <<: *env-vars
+      TCM_MISSING: /config/missing.yml
+      TCM_RUNTIME: 23:00
+      TCM_FREQUENCY: 12h
+    labels:
+      traefik.enable: false
 

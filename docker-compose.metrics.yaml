@@ -2,7 +2,6 @@ x-common-metrics: &metrics
   prometheus:
     image: prom/prometheus
     container_name: prometheus
-    hostname: prometheus.${DOMAIN}
     <<: *common
     entrypoint: ["/bin/sh", "-c"]
     command:
@@ -18,34 +17,33 @@ x-common-metrics: &metrics
       retries: 10
       start_period: 40s
     labels:
-      traefik.http.routers.prometheus.rule: Host(`prometheus.${DOMAIN}`)
       traefik.http.routers.prometheus.entrypoints: websecure
       traefik.http.services.prometheus.loadbalancer.server.port: 9090
       traefik.http.routers.prometheus.tls: true
       traefik.http.routers.prometheus.tls.certResolver: letsencrypt
-      traefik.http.routers.prometheus.middlewares: authelia
+      traefik.http.routers.prometheus.middlewares: auth
       traefik.backend: prometheus
 
   grafana:
     image: grafana/grafana
-    container_name: grafana
+    container_name: metrics
     hostname: metrics.${DOMAIN}
     <<: *common
     user: ${PUID}
     environment:
       <<: *env-vars
       GF_SERVER_ROOT_URL: https://metrics.${DOMAIN}
+      OTEL_SERVICE_NAME: grafana
     volumes:
       - config-grafana:/etc/grafana
       - config-grafana-data:/var/lib/grafana
     healthcheck:
-      test: ["CMD-SHELL", "wget --spider http://localhost:3000 || exit 1"]
+      test: ["CMD-SHELL", "curl http://localhost:3000/healthz | grep -i 'ok' || exit 1"]
       interval: 10s
       timeout: 15s
       retries: 10
       start_period: 40s
     labels:
-      traefik.http.routers.grafana.rule: Host(`metrics.${DOMAIN}`)
       traefik.http.services.grafana.loadBalancer.server.port: 3000
       traefik.http.routers.grafana.entrypoints: websecure
       traefik.http.routers.grafana.tls: true
@@ -54,27 +52,43 @@ x-common-metrics: &metrics
   loki:
     container_name: loki
     image: grafana/loki
-    hostname: loki.${DOMAIN}
     <<: *common
     command: -config.file=/etc/loki/loki-config.yaml
     volumes:
       - config-loki:/etc/loki
       - config-loki-data:/loki
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "--no-verbose",
+          "--tries=1",
+          "--spider",
+          "http://localhost:3100/ready",
+        ]
+      interval: 10s
+      timeout: 15s
+      retries: 10
+      start_period: 40s
     labels:
       traefik.enable: false
       force: false
 
   promtail:
-    container_name: promtail
+    container_name: logs
     image: grafana/promtail
-    hostname: logs.${DOMAIN}
     <<: *common
     command: -config.file=/etc/promtail/promtail-config.yaml
     volumes:
       - /var/lib/docker/containers:/var/lib/docker/containers:ro
       - config-promtail:/etc/promtail
+    environment:
+      <<: *env-vars
+      JAEGER_ENDPOINT: "http://tracing:14268/api/traces?format=jaeger.thrift"
+      JAEGER_SAMPLER_MANAGER_HOST_PORT: "http://tracing:5778/sampling"
+      OTEL_SERVICE_NAME: promtail
     labels:
-      traefik.http.routers.promtail.rule: Host(`logs.${DOMAIN}`)
       traefik.http.services.promtail.loadBalancer.server.port: 9080
       traefik.http.routers.promtail.entrypoints: websecure
       traefik.http.routers.promtail.tls: true
@@ -100,7 +114,7 @@ x-common-metrics: &metrics
 
   node_exporter:
     image: quay.io/prometheus/node-exporter
-    container_name: node-exporter
+    container_name: host
     command: --path.rootfs=/host
     <<: *common
     pid: host
@@ -139,4 +153,45 @@ x-common-metrics: &metrics
       - 127.0.0.1:9798:9798
     labels:
       traefik.enable: false
+
+  tracing:
+    image: jaegertracing/all-in-one:1.52
+    container_name: tracing
+    <<: *common
+    environment:
+      <<: *env-vars
+      COLLECTOR_OTLP_ENABLED: true
+      METRICS_STORAGE_TYPE: prometheus
+      PROMETHEUS_SERVER_URL: "http://prometheus:9090"
+      PROMETHEUS_QUERY_SUPPORT_SPANMETRICS_CONNECTOR: true
+      OTEL_SERVICE_NAME: jaeger-all-in-one
+    ports:
+      - 6831:6831/udp
+      - 6832:6832/udp
+      - 5778:5778
+      - 16686:16686
+      - 4317:4317
+      - 4318:4318
+      - 14250:14250
+      - 14268:14268
+      - 14269:14269
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "--no-verbose",
+          "--tries=1",
+          "--spider",
+          "http://localhost:14269/",
+        ]
+      interval: 10s
+      timeout: 15s
+      retries: 10
+      start_period: 40s
+    labels:
+      traefik.http.services.tracing.loadBalancer.server.port: 16686
+      traefik.http.routers.tracing.entrypoints: websecure
+      traefik.http.routers.tracing.tls: true
+      traefik.http.routers.tracing.tls.certResolver: letsencrypt
 

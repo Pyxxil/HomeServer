@@ -18,7 +18,26 @@ x-common-databases: &databases
       <<: *env-vars
       POSTGRES_USER: ${DATABASE_USERNAME}
       POSTGRES_PASSWORD: ${DATABASE_PASSWORD}
-      POSTGRES_MULTIPLE_DATABASES: vikunja,vaultwarden,outline,auth,pocket,mealie,firefly,letsblockit
+      POSTGRES_MULTIPLE_DATABASES: vikunja,vaultwarden,outline,auth,pocket,mealie,letsblockit
+    labels:
+      traefik.enable: false
+
+  pg-vectors:
+    image: tensorchord/pgvecto-rs:pg15-v0.1.11
+    container_name: pg-vectors
+    <<: *common
+    volumes:
+      - config-pg-vectors:/var/lib/postgresl/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DATABASE_USERNAME} -d immich"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+    environment:
+      <<: *env-vars
+      POSTGRES_USER: ${DATABASE_USERNAME}
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD}
+      POSTGRES_DB: immich
     labels:
       traefik.enable: false
 
@@ -51,8 +70,13 @@ x-common-databases: &databases
       <<: *env-vars
       MINIO_BROWSER_REDIRECT_URL: "https://minio.${DOMAIN}"
       MINIO_PROMETHEUS_AUTH_TYPE: "public"
+    healthcheck:
+      test: timeout 5s bash -c ':> /dev/tcp/127.0.0.1/9000' || exit 1
+      interval: 5s
+      retries: 1
+      start_period: 5s
+      timeout: 5s
     labels:
-      traefik.http.routers.minio.rule: Host(`minio.${DOMAIN}`)
       traefik.http.services.minio.loadbalancer.server.port: 9001
       traefik.http.routers.minio.entrypoints: websecure
       traefik.http.routers.minio.tls: true
@@ -64,4 +88,22 @@ x-common-databases: &databases
       traefik.http.routers.minioadmin.tls: true
       traefik.http.routers.minioadmin.tls.certResolver: letsencrypt
       traefik.http.routers.minioadmin.service: minioadmin
+
+  mosquitto:
+    image: eclipse-mosquitto
+    container_name: mqtt
+    <<: *common
+    ports:
+      - 1883:1883
+      - 8083:8083
+    volumes:
+      - config-mosquitto:/mosquitto/config
+    healthcheck:
+      test: ["CMD", "mosquitto_sub", "-t", "$$SYS/#", "-C", "1", "-i", "healthcheck", "-W", "3", "-u", "${FRIGATE_MQTT_USERNAME}", "-P", "${FRIGATE_MQTT_PASSWORD}"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 20s
+    labels:
+      traefik.enable: false
 

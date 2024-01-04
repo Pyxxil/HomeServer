@@ -35,20 +35,10 @@ x-common-ai: &ai
     labels:
       traefik.enable: false
 
-  open-wake-word:
-    image: rhasspy/wyoming-openwakeword
-    container_name: open-wake-word
-    command: --preload-model hey_mycroft
-    <<: *common
-    ports:
-      - 10400:10400 
-    labels:
-      traefik.enable: false
-
   local-ai:
     image: quay.io/go-skynet/local-ai:latest
     container_name: local-ai
-    command: --models-path /models --context-size 700 --threads 8
+    command: --models-path /models --context-size 1024 --threads 6
     <<: *common
     environment:
       <<: *env-vars
