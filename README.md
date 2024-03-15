@@ -79,7 +79,7 @@ scrape_configs:
 - job_name: 'todo'
   metrics_path: '/api/v1/metrics'
   static_configs:
-    - targets: ['todo-api:3456']
+    - targets: ['todo:3456']
 - job_name: minio
   metrics_path: /minio/v2/metrics/cluster
   scheme: http

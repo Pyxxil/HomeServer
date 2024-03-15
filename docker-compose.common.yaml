@@ -28,20 +28,21 @@ x-common-common: &common
 
 networks:
   web:
+    name: web
     external: false
   internal:
+    name: internal
     external: false
-  private_network:
-    ipam:
-      driver: default
-      config:
-        - subnet: 10.2.0.0/24
 
 volumes:
   config-adguard:
     driver_opts:
       <<: *driver-opts
       device: ${CONFIG_DIR}/adguard
+  config-adguardhome-sync:
+    driver_opts:
+      <<: *driver-opts
+      device: ${CONFIG_DIR}/adguardhome-sync
   config-authelia:
     driver_opts:
       <<: *driver-opts
@@ -50,10 +51,6 @@ volumes:
     driver_opts:
       <<: *driver-opts
       device: ${CONFIG_DIR}/beets
-  config-blackhole:
-    driver_opts:
-      <<: *driver-opts
-      device: ${CONFIG_DIR}/blackhole
   config-code:
     driver_opts:
       <<: *driver-opts
@@ -62,10 +59,6 @@ volumes:
     driver_opts:
       <<: *driver-opts
       device: ${CONFIG_DIR}/diun
-  config-dnscrypt:
-    driver_opts:
-      <<: *driver-opts
-      device: ${CONFIG_DIR}/dnscrypt
   config-freshrss:
     driver_opts:
       <<: *driver-opts
@@ -146,10 +139,10 @@ volumes:
     driver_opts:
       <<: *driver-opts
       device: ${CONFIG_DIR}/ntfy/cache
-  config-outline-storage:
+  config-s3:
     driver_opts:
       <<: *driver-opts
-      device: ${CONFIG_DIR}/outline/storage
+      device: ${CONFIG_DIR}/s3
   config-pg-vectors:
     driver_opts:
       <<: *driver-opts
@@ -206,6 +199,10 @@ volumes:
     driver_opts:
       <<: *driver-opts
       device: ${CONFIG_DIR}/sonarr
+  config-speedtest:
+    driver_opts:
+      <<: *driver-opts
+      device: ${CONFIG_DIR}/speedtest
   config-syncthing:
     driver_opts:
       <<: *driver-opts
@@ -222,10 +219,6 @@ volumes:
     driver_opts:
       <<: *driver-opts
       device: ${CONFIG_DIR}/traefik
-  config-unbound:
-    driver_opts:
-      <<: *driver-opts
-      device: ${CONFIG_DIR}/unbound
   config-vaultwarden:
     driver_opts:
       <<: *driver-opts

@@ -21,7 +21,7 @@ x-common-metrics: &metrics
       traefik.http.services.prometheus.loadbalancer.server.port: 9090
       traefik.http.routers.prometheus.tls: true
       traefik.http.routers.prometheus.tls.certResolver: letsencrypt
-      traefik.http.routers.prometheus.middlewares: auth
+      traefik.http.routers.prometheus.middlewares: auth@file
       traefik.backend: prometheus
 
   grafana:
@@ -57,6 +57,9 @@ x-common-metrics: &metrics
     volumes:
       - config-loki:/etc/loki
       - config-loki-data:/loki
+    depends_on:
+      - redis
+      - minio
     healthcheck:
       test:
         [
@@ -98,14 +101,12 @@ x-common-metrics: &metrics
     image: ebrianne/adguard-exporter
     container_name: adguard-exporter
     <<: *common
-    depends_on:
-      - adguard
     environment:
       adguard_protocol: http
-      adguard_hostname: adguard
+      adguard_hostname: 192.168.1.1
       adguard_username: ${ADGUARD_USERNAME}
       adguard_password: ${ADGUARD_PASSWORD}
-      adguard_port: 3000
+      adguard_port: 81
       server_port: 9617
       interval: 10s
       log_limit: 10000
@@ -131,26 +132,17 @@ x-common-metrics: &metrics
   postgres-exporter:
     image: quay.io/prometheuscommunity/postgres-exporter
     container_name: postgres-exporter
+    <<: *common
     depends_on:
       - postgres
-    <<: *common
     networks:
       - internal
     environment:
       <<: *env-vars
-      DATA_SOURCE_URI: postgres?sslmode=disable
+      DATA_SOURCE_NAME: "postgresql://${DATABASE_USERNAME}:${DATABASE_PASSWORD}@postgres?sslmode=disable,postgresql://immich:${DATABASE_PASSWORD}@pg-vectors?sslmode=disable"
       DATA_SOURCE_USER: ${DATABASE_USERNAME}
       DATA_SOURCE_PASS: ${DATABASE_PASSWORD}
       PG_EXPORTER_AUTO_DISCOVER_DATABASES: true
-    labels:
-      traefik.enable: false
-
-  speedtest-exporter:
-    image: miguelndecarvalho/speedtest-exporter
-    container_name: speedtest
-    <<: *common
-    ports:
-      - 127.0.0.1:9798:9798
     labels:
       traefik.enable: false
 
@@ -165,6 +157,10 @@ x-common-metrics: &metrics
       PROMETHEUS_SERVER_URL: "http://prometheus:9090"
       PROMETHEUS_QUERY_SUPPORT_SPANMETRICS_CONNECTOR: true
       OTEL_SERVICE_NAME: jaeger-all-in-one
+    deploy:
+      resources:
+        limits:
+          memory: 2G
     ports:
       - 6831:6831/udp
       - 6832:6832/udp

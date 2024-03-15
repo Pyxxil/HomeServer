@@ -3,6 +3,8 @@ x-common-admin: &admin
     container_name: dash
     image: traefik
     <<: *common
+    networks:
+      - web
     command:
       - --accesslog=true
       - --accesslog.format=json
@@ -17,7 +19,9 @@ x-common-admin: &admin
       - --certificatesresolvers.letsencrypt.acme.dnschallenge.resolvers=1.1.1.1:53,8.8.8.8:53
       - --certificatesresolvers.letsencrypt.acme.email=${ADMIN_EMAIL}
       - --certificatesresolvers.letsencrypt.acme.storage=/config/acme.json
+      - --entrypoints.name.http3.advertisedport=443
       - --entrypoints.web.address=:80
+      - --entrypoints.websecure.http.middlewares=compress@file
       - --entrypoints.web.forwardedHeaders.insecure=false
       - --entrypoints.web.proxyProtocol.insecure=false
       - --entryPoints.web.forwardedHeaders.trustedIPs=10.0.0.0/8,172.0.0.0/8,192.168.0.0/16,fc00::/7,100.0.0.0/8
@@ -32,6 +36,7 @@ x-common-admin: &admin
       - --entrypoints.websecure.forwardedHeaders.insecure=false
       - --entrypoints.websecure.proxyProtocol.insecure=false
       - --experimental.http3=true
+      - --log.format=json
       - --log.level=info
       - --ping=true
       - --metrics.prometheus=true
@@ -60,13 +65,6 @@ x-common-admin: &admin
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - config-traefik:/config
-    networks:
-      internal:
-      web:
-        priority: 20
-        aliases:
-          - auth.${DOMAIN}
-      private_network:
     healthcheck:
       test: ["CMD", "traefik", "healthcheck", "--ping"]
       interval: 30s
@@ -76,11 +74,8 @@ x-common-admin: &admin
       - auth
     labels:
       traefik.http.routers.dashboard.rule: Host(`dash.${DOMAIN}`)
-      traefik.http.middlewares.auth.forwardauth.address: http://auth:9091/api/verify?rd=https://auth.${DOMAIN}
-      traefik.http.middlewares.auth.forwardauth.trustForwardHeader: true
-      traefik.http.middlewares.auth.forwardauth.authResponseHeaders: Remote-User,Remote-Groups,Remote-Name,Remote-Email
       traefik.http.routers.dashboard.service: api@internal
-      traefik.http.routers.dashboard.middlewares: auth
+      traefik.http.routers.dashboard.middlewares: auth@file
       traefik.http.routers.dashboard.tls: true
       traefik.http.routers.dashboard.tls.certResolver: letsencrypt
       traefik.http.routers.dashboard.entrypoints: websecure

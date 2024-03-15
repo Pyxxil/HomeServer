@@ -10,23 +10,44 @@ x-common-other: &other
     labels:
       traefik.enable: false
 
-  archive-warrior:
-    container_name: warrior
-    image: atdr.meo.ws/archiveteam/warrior-dockerfile
-    hostname: warrior.${DOMAIN}
+  speedtest-tracker:
+    container_name: speed
+    image: lscr.io/linuxserver/speedtest-tracker:latest
     <<: *common
     environment:
       <<: *env-vars
-      SELECTED_PROJECT: auto
-      DOWNLOADER: pyxxil
-    dns:
-      - 1.1.1.1
-      - 9.9.9.9
+      DB_CONNECTION: pgsql
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_DATABASE: speedtest
+      DB_USERNAME: ${DATABASE_USERNAME}
+      DB_PASSWORD: ${DATABASE_PASSWORD}
+      APP_DEBUG: true
+    volumes:
+      - config-speedtest:/config
+    restart: unless-stopped
+    depends_on:
+      - postgres
     labels:
-      traefik.port: 8001
-      traefik.http.services.warrior.loadbalancer.server.port: 8001
-      traefik.http.routers.warrior.entrypoints: websecure
-      traefik.http.routers.warrior.tls: true
-      traefik.http.routers.warrior.tls.certResolver: letsencrypt
-      diun.enable: false
+      traefik.http.services.speedtest.loadbalancer.server.port: 80
+      traefik.http.routers.speedtest.entrypoints: websecure
+      traefik.http.routers.speedtest.tls: true
+      traefik.http.routers.speedtest.tls.certResolver: letsencrypt
+      label.force.update: true
+
+  adguardhome-sync:
+    container_name: adguardhome-sync
+    image: lscr.io/linuxserver/adguardhome-sync:latest
+    <<: *common
+    environment:
+      <<: *env-vars
+      CONFIGFILE: /config/config.yaml
+    volumes:
+      - config-adguardhome-sync:/config
+    labels:
+      traefik.http.services.adguardhomesync.loadbalancer.server.port: 8080
+      traefik.http.routers.adguardhomesync.entrypoints: websecure
+      traefik.http.routers.adguardhomesync.tls: true
+      traefik.http.routers.adguardhomesync.tls.certResolver: letsencrypt
+      traefik.docker.network: web
 

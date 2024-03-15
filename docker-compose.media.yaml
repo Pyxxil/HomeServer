@@ -20,7 +20,7 @@ x-common-media: &media
       traefik.http.services.radarr.loadbalancer.server.port: 7878
       traefik.http.routers.radarr.tls: true
       traefik.http.routers.radarr.tls.certResolver: letsencrypt
-      traefik.http.routers.radarr.middlewares: auth
+      traefik.http.routers.radarr.middlewares: auth@file
 
   sonarr:
     image: lscr.io/linuxserver/sonarr:develop
@@ -43,7 +43,7 @@ x-common-media: &media
       traefik.http.services.sonarr.loadbalancer.server.port: 8989
       traefik.http.routers.sonarr.tls: true
       traefik.http.routers.sonarr.tls.certResolver: letsencrypt
-      traefik.http.routers.sonarr.middlewares: auth
+      traefik.http.routers.sonarr.middlewares: auth@file
 
   readarr:
     image: lscr.io/linuxserver/readarr:develop
@@ -66,7 +66,7 @@ x-common-media: &media
       traefik.http.routers.readarr.entrypoints: websecure
       traefik.http.routers.readarr.tls: true
       traefik.http.routers.readarr.tls.certResolver: letsencrypt
-      traefik.http.routers.readarr.middlewares: auth
+      traefik.http.routers.readarr.middlewares: auth@file
 
   metube:
     image: alexta69/metube
@@ -77,19 +77,21 @@ x-common-media: &media
     environment:
       <<: *env-vars
       OUTPUT_TEMPLATE: "%(uploader)s - %(upload_date)s - %(title)s [%(id)s].%(ext)s"
-      YTDL_OPTIONS: '{ "writeinfojson": true, "updatetime": false, "prefer_free_formats": true, "concurrent_fragment_downloads": 4, "ignoreerrors": true, "postprocessors": [{ "key": "Exec", "exec_cmd": "chmod 0664", "when": "after_move" }, { "key": "FFmpegMetadata", "add_chapters": true }] }'
+      YTDL_OPTIONS: '{ "writeinfojson": true, "updatetime": false, "prefer_free_formats": true, "concurrent_fragment_downloads": 3, "ignoreerrors": true, "check_formats": true, "postprocessors": [{ "key": "Exec", "exec_cmd": "chmod 0664", "when": "after_move" }, { "key": "FFmpegMetadata", "add_chapters": true }] }'
       DEFAULT_THEME: dark
     labels:
       traefik.http.routers.youtube.entrypoints: websecure
       traefik.http.services.youtube.loadBalancer.server.port: 8081
       traefik.http.routers.youtube.tls: true
       traefik.http.routers.youtube.tls.certResolver: letsencrypt
-      traefik.http.routers.youtube.middlewares: auth
+      traefik.http.routers.youtube.middlewares: auth@file
 
   prowlarr:
     image: lscr.io/linuxserver/prowlarr:develop
     container_name: indexers
     <<: *common
+    sysctls:
+      - net.ipv6.conf.all.disable_ipv6=1
     volumes:
       - config-prowlarr:/config
     healthcheck:
@@ -102,7 +104,7 @@ x-common-media: &media
       traefik.http.services.prowlarr.loadbalancer.server.port: 9696
       traefik.http.routers.prowlarr.tls: true
       traefik.http.routers.prowlarr.tls.certResolver: letsencrypt
-      traefik.http.routers.prowlarr.middlewares: auth
+      traefik.http.routers.prowlarr.middlewares: auth@file
 
   recyclarr:
     image: ghcr.io/recyclarr/recyclarr
@@ -163,7 +165,7 @@ x-common-media: &media
       traefik.http.middlewares.qbittorrent-headers.headers.customrequestheaders.X-Frame-Options: SAMEORIGIN
       traefik.http.middlewares.qbittorrent-headers.headers.customrequestheaders.Referer: ""
       traefik.http.middlewares.qbittorrent-headers.headers.customrequestheaders.Origin: ""
-      traefik.http.routers.qbittorrent.middlewares: qbittorrent-headers,auth
+      traefik.http.routers.qbittorrent.middlewares: qbittorrent-headers,auth@file
 
   jellyseerr:
     image: ghcr.io/fallenbagel/jellyseerr:develop
@@ -173,7 +175,7 @@ x-common-media: &media
       - config-jellyseerr:/app/config
     environment:
       <<: *env-vars
-      LOG_LEVEL: info
+      LOG_LEVEL: debug
     healthcheck:
       test:
         [
@@ -223,12 +225,6 @@ x-common-media: &media
     devices:
       - /dev/dri:/dev/dri
       - /dev/kfd:/dev/kfd
-    healthcheck:
-      test: ["CMD-SHELL", "curl --fail localhost:8096"]
-      interval: 1m30s
-      timeout: 30s
-      retries: 5
-      start_period: 30s
     labels:
       traefik.http.services.watch.loadBalancer.server.port: 8096
       traefik.http.routers.watch.entrypoints: websecure
@@ -271,7 +267,7 @@ x-common-media: &media
       traefik.http.routers.podgrab.entrypoints: websecure
       traefik.http.routers.podgrab.tls: true
       traefik.http.routers.podgrab.tls.certResolver: letsencrypt
-      traefik.http.routers.podgrab.middlewares: auth
+      traefik.http.routers.podgrab.middlewares: auth@file
 
   calibre:
     container_name: calibre
@@ -290,7 +286,7 @@ x-common-media: &media
       traefik.http.routers.calibre.entrypoints: websecure
       traefik.http.routers.calibre.tls: true
       traefik.http.routers.calibre.tls.certResolver: letsencrypt
-      traefik.http.routers.calibre.middlewares: auth
+      traefik.http.routers.calibre.middlewares: auth@file
 
   beets:
     image: lscr.io/linuxserver/beets:nightly
@@ -305,7 +301,7 @@ x-common-media: &media
       traefik.http.routers.beets.entrypoints: websecure
       traefik.http.routers.beets.tls: true
       traefik.http.routers.beets.tls.certResolver: letsencrypt
-      traefik.http.routers.beets.middlewares: auth
+      traefik.http.routers.beets.middlewares: auth@file
 
   immich:
     image: ghcr.io/imagegenius/immich
@@ -314,11 +310,11 @@ x-common-media: &media
     environment:
       <<: *env-vars
       DB_HOSTNAME: pg-vectors
-      DB_USERNAME: ${DATABASE_USERNAME}
+      DB_USERNAME: immich
       DB_PASSWORD: ${DATABASE_PASSWORD}
       DB_DATABASE_NAME: immich
-      REDIS_HOSTNAME: redis
       DB_PORT: 5432
+      REDIS_HOSTNAME: redis
       REDIS_PORT: 6379
       MACHINE_LEARNING_WORKERS: 1
       MACHINE_LEARNING_WORKER_TIMEOUT: 120
@@ -326,10 +322,9 @@ x-common-media: &media
       - /dev/dri/renderD128:/dev/dri/renderD128
     healthcheck:
       test: ["CMD-SHELL", "curl --fail localhost:8080/api/server-info/ping | grep 'pong' || exit 1"]
-      interval: 1m30s
+      interval: 30s
       timeout: 30s
       retries: 5
-      start_period: 30s
     depends_on:
       - pg-vectors
       - redis
@@ -342,20 +337,26 @@ x-common-media: &media
       traefik.http.routers.immich.entrypoints: websecure
       traefik.http.routers.immich.tls: true
       traefik.http.routers.immich.tls.certResolver: letsencrypt
+      force.update: true
 
   title-card-maker:
     image: collinheist/titlecardmaker
     container_name: title-card-maker
     <<: *common
+    command: python3 main.py --run
     volumes:
       - config-title:/config
       - config-title-logs:/maker/logs
       - media-shows:/Television Shows
+    deploy:
+      resources:
+        limits:
+          cpus: '6'
     environment:
       <<: *env-vars
       TCM_MISSING: /config/missing.yml
       TCM_RUNTIME: 23:00
-      TCM_FREQUENCY: 12h
+      TCM_FREQUENCY: 2h
     labels:
       traefik.enable: false
 

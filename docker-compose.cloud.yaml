@@ -1,7 +1,7 @@
 x-common-cloud: &cloud
-  todo-api:
-    image: vikunja/api
-    container_name: todo-api
+  todo:
+    image: vikunja/vikunja
+    container_name: todo
     <<: *common
     environment:
       <<: *env-vars
@@ -11,8 +11,8 @@ x-common-cloud: &cloud
       VIKUNJA_DATABASE_USER: ${DATABASE_USERNAME}
       VIKUNJA_DATABASE_DATABASE: ${TODO_DATABASE}
       VIKUNJA_SERVICE_JWTSECRET: ${JWT_SECRET}
-      VIKUNJA_SERVICE_FRONTENDURL: https://todo.${DOMAIN}/
       VIKUNJA_SERVICE_TIMEZONE: ${TIMEZONE}
+      VIKUNJA_SERVICE_PUBLICURL: https://todo.${DOMAIN}
       VIKUNJA_LOG_LEVEL: DEBUG
       VIKUNJA_METRICS_ENABLED: true
       VIKUNJA_LOG_EVENTS: stdout
@@ -36,29 +36,6 @@ x-common-cloud: &cloud
           "--spider",
           "http://localhost:3456/api/v1/info",
         ]
-      interval: 30s
-      timeout: 30s
-      retries: 5
-      start_period: 30s
-    labels:
-      traefik.http.routers.todo-api.rule:
-        Host(`todo.${DOMAIN}`) && PathPrefix(`/api/v1`, `/dav/`,
-        `/.well-known/`)
-      traefik.http.routers.todo-api.entrypoints: websecure
-      traefik.http.routers.todo-api.tls: true
-      traefik.http.routers.todo-api.tls.certResolver: letsencrypt
-
-  todo:
-    container_name: todo
-    image: vikunja/frontend
-    <<: *common
-    depends_on:
-      - todo-api
-    environment:
-      <<: *env-vars
-      VIKUNJA_API_URL: https://todo.${DOMAIN}/api/v1
-    healthcheck:
-      test: ["CMD-SHELL", "curl --fail localhost"]
       interval: 30s
       timeout: 30s
       retries: 5
@@ -95,26 +72,27 @@ x-common-cloud: &cloud
     image: vaultwarden/server
     container_name: vault
     <<: *common
-    volumes:
-      - config-vaultwarden:/data
-    depends_on:
-      - postgres
     environment:
       <<: *env-vars
       DOMAIN: "https://vault.${DOMAIN}"
       ADMIN_TOKEN: ${VAULTWARDEN_TOKEN}
       WEBSOCKET_ENABLED: true
       ROCKET_PORT: 8800
-      SMTP_PORT: 25
+      SMTP_PORT: 587
       SMTP_SECURITY: starttls
       SMTP_HOST: ${SMTP_HOST}
       SMTP_FROM: vault@${DOMAIN}
       DATABASE_URL: postgresql://${DATABASE_USERNAME}:${DATABASE_PASSWORD}@postgres:5432/vaultwarden
+    volumes:
+      - config-vaultwarden:/data
+    depends_on:
+      - postgres
     labels:
       traefik.http.services.vaultwarden.loadbalancer.server.port: 8800
       traefik.http.routers.vaultwarden.entrypoints: websecure
       traefik.http.routers.vaultwarden.tls: true
       traefik.http.routers.vaultwarden.tls.certResolver: letsencrypt
+      traefik.docker.network: web
 
   freshrss:
     image: lscr.io/linuxserver/freshrss
@@ -161,8 +139,9 @@ x-common-cloud: &cloud
   homeassistant:
     image: lscr.io/linuxserver/homeassistant
     container_name: homeassistant
+    restart: unless-stopped
     dns:
-      - ${IP}
+      - 192.168.1.1
     <<: *logging
     depends_on:
       - mosquitto
@@ -253,6 +232,10 @@ x-common-cloud: &cloud
       timeout: 30s
       retries: 5
       start_period: 30s
+    deploy:
+      resources:
+        limits:
+          cpus: '4'
     environment:
       <<: *env-vars
       LIBVA_DRIVER_NAME: radeonsi

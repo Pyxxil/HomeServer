@@ -18,24 +18,26 @@ x-common-databases: &databases
       <<: *env-vars
       POSTGRES_USER: ${DATABASE_USERNAME}
       POSTGRES_PASSWORD: ${DATABASE_PASSWORD}
-      POSTGRES_MULTIPLE_DATABASES: vikunja,vaultwarden,outline,auth,pocket,mealie,letsblockit
+      POSTGRES_MULTIPLE_DATABASES: vikunja,vaultwarden,outline,auth,mealie,letsblockit,speedtest
     labels:
       traefik.enable: false
 
   pg-vectors:
-    image: tensorchord/pgvecto-rs:pg15-v0.1.11
+    image: tensorchord/pgvecto-rs:pg15-v0.2.0
     container_name: pg-vectors
     <<: *common
+    networks:
+      - internal
     volumes:
-      - config-pg-vectors:/var/lib/postgresl/data
+      - config-pg-vectors:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DATABASE_USERNAME} -d immich"]
+      test: ["CMD-SHELL", "pg_isready -U immich -d immich"]
       interval: 30s
       timeout: 20s
       retries: 3
     environment:
       <<: *env-vars
-      POSTGRES_USER: ${DATABASE_USERNAME}
+      POSTGRES_USER: immich
       POSTGRES_PASSWORD: ${DATABASE_PASSWORD}
       POSTGRES_DB: immich
     labels:
@@ -65,7 +67,7 @@ x-common-databases: &databases
     command: -c 'minio server /data --console-address ":9001"'
     <<: *common
     volumes:
-      - config-outline-storage:/data
+      - config-s3:/data
     environment:
       <<: *env-vars
       MINIO_BROWSER_REDIRECT_URL: "https://minio.${DOMAIN}"
@@ -93,6 +95,8 @@ x-common-databases: &databases
     image: eclipse-mosquitto
     container_name: mqtt
     <<: *common
+    networks:
+      - internal
     ports:
       - 1883:1883
       - 8083:8083
