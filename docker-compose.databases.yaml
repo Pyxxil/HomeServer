@@ -1,13 +1,13 @@
 
 x-common-databases: &databases
   postgres:
-    image: postgres:15
+    image: postgres:16
     container_name: postgres
     <<: *common
     networks:
       - internal
     volumes:
-      - config-postgres:/var/lib/postgresql/data
+      - config-postgres:/var/lib/postgresql
       - ./postgres:/docker-entrypoint-initdb.d
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DATABASE_USERNAME} -d ${TODO_DATABASE}"]
@@ -19,6 +19,7 @@ x-common-databases: &databases
       POSTGRES_USER: ${DATABASE_USERNAME}
       POSTGRES_PASSWORD: ${DATABASE_PASSWORD}
       POSTGRES_MULTIPLE_DATABASES: vikunja,vaultwarden,outline,auth,mealie,letsblockit,speedtest
+      PGDATA: /var/lib/postgresql/16/data
     labels:
       traefik.enable: false
 

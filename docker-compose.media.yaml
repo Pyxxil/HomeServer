@@ -146,7 +146,7 @@ x-common-media: &media
     deploy:
       resources:
         limits:
-          memory: 2G
+          memory: 8G
     volumes:
       - config-qbittorrent:/config
       - downloads:/downloads
