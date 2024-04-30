@@ -261,7 +261,7 @@ x-common-media: &media
       interval: 1m30s
       timeout: 30s
       retries: 5
-      start_period: 30s
+      start_period: 10s
     labels:
       traefik.http.services.podgrab.loadBalancer.server.port: 8080
       traefik.http.routers.podgrab.entrypoints: websecure
@@ -297,11 +297,7 @@ x-common-media: &media
       - media-music:/music
       - downloads-music:/downloads
     labels:
-      traefik.http.services.beets.loadBalancer.server.port: 8337
-      traefik.http.routers.beets.entrypoints: websecure
-      traefik.http.routers.beets.tls: true
-      traefik.http.routers.beets.tls.certResolver: letsencrypt
-      traefik.http.routers.beets.middlewares: auth@file
+      traefik.enable: false
 
   immich:
     image: ghcr.io/imagegenius/immich
@@ -337,7 +333,6 @@ x-common-media: &media
       traefik.http.routers.immich.entrypoints: websecure
       traefik.http.routers.immich.tls: true
       traefik.http.routers.immich.tls.certResolver: letsencrypt
-      force.update: true
 
   title-card-maker:
     image: collinheist/titlecardmaker

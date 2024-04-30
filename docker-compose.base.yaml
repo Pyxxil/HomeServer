@@ -1,4 +1,3 @@
-
 services:
   <<: [ *admin, *metrics, *dns, *cloud, *media, *ai, *databases, *other ]
 

@@ -9,4 +9,5 @@ awk 1 docker-compose.common.yaml   \
     docker-compose.ai.yaml         \
     docker-compose.other.yaml      \
     docker-compose.base.yaml       \
-    | docker compose -f - $@
+    | docker compose --file - $@
+

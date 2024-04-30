@@ -23,17 +23,26 @@ x-common-other: &other
       DB_USERNAME: ${DATABASE_USERNAME}
       DB_PASSWORD: ${DATABASE_PASSWORD}
       APP_DEBUG: true
+      APP_KEY: ${SPEEDTEST_APP_KEY}
+      PUBLIC_DASHBOARD: true
+      CACHE_DRIVER: redis
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
     volumes:
       - config-speedtest:/config
-    restart: unless-stopped
     depends_on:
       - postgres
+    healthcheck:
+      test: curl -fSs localhost/api/healthcheck || exit 1
+      interval: 10s
+      retries: 3
+      start_period: 30s
+      timeout: 10s
     labels:
       traefik.http.services.speedtest.loadbalancer.server.port: 80
       traefik.http.routers.speedtest.entrypoints: websecure
       traefik.http.routers.speedtest.tls: true
       traefik.http.routers.speedtest.tls.certResolver: letsencrypt
-      label.force.update: true
 
   adguardhome-sync:
     container_name: adguardhome-sync

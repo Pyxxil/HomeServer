@@ -114,6 +114,7 @@ x-common-cloud: &cloud
       traefik.http.routers.freshrss.entrypoints: websecure
       traefik.http.routers.freshrss.tls: true
       traefik.http.routers.freshrss.tls.certResolver: letsencrypt
+      traefik.http.routers.freshrss.middlewares: auth@file
 
   wiki:
     image: outlinewiki/outline
@@ -257,4 +258,5 @@ x-common-cloud: &cloud
       traefik.http.routers.frigate.entrypoints: websecure
       traefik.http.routers.frigate.tls: true
       traefik.http.routers.frigate.tls.certResolver: letsencrypt
+      traefik.http.routers.frigate.middlewares: auth@file
 
