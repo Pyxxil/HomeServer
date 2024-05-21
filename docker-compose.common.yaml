@@ -117,6 +117,10 @@ volumes:
     driver_opts:
       <<: *driver-opts
       device: ${CONFIG_DIR}/mailrise
+  config-matter:
+    driver_opts:
+      <<: *driver-opts
+      device: ${CONFIG_DIR}/matter
   config-mealie-data:
     driver_opts:
       <<: *driver-opts

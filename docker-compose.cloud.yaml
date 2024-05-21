@@ -146,6 +146,7 @@ x-common-cloud: &cloud
     <<: *logging
     depends_on:
       - mosquitto
+      - matter
     environment:
       <<: *env-vars
       DOCKER_MODS: "linuxserver/mods:homeassistant-hacs|linuxserver/mods:universal-package-install"

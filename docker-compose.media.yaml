@@ -90,8 +90,6 @@ x-common-media: &media
     image: lscr.io/linuxserver/prowlarr:develop
     container_name: indexers
     <<: *common
-    sysctls:
-      - net.ipv6.conf.all.disable_ipv6=1
     volumes:
       - config-prowlarr:/config
     healthcheck:
@@ -299,41 +297,6 @@ x-common-media: &media
     labels:
       traefik.enable: false
 
-  immich:
-    image: ghcr.io/imagegenius/immich
-    container_name: photos
-    <<: *common
-    environment:
-      <<: *env-vars
-      DB_HOSTNAME: pg-vectors
-      DB_USERNAME: immich
-      DB_PASSWORD: ${DATABASE_PASSWORD}
-      DB_DATABASE_NAME: immich
-      DB_PORT: 5432
-      REDIS_HOSTNAME: redis
-      REDIS_PORT: 6379
-      MACHINE_LEARNING_WORKERS: 1
-      MACHINE_LEARNING_WORKER_TIMEOUT: 120
-    devices:
-      - /dev/dri/renderD128:/dev/dri/renderD128
-    healthcheck:
-      test: ["CMD-SHELL", "curl --fail localhost:8080/api/server-info/ping | grep 'pong' || exit 1"]
-      interval: 30s
-      timeout: 30s
-      retries: 5
-    depends_on:
-      - pg-vectors
-      - redis
-    volumes:
-      - config-immich:/config
-      - media-photos:/photos
-      - downloads-pictures:/import:ro #optional
-    labels:
-      traefik.http.services.immich.loadBalancer.server.port: 8080
-      traefik.http.routers.immich.entrypoints: websecure
-      traefik.http.routers.immich.tls: true
-      traefik.http.routers.immich.tls.certResolver: letsencrypt
-
   title-card-maker:
     image: collinheist/titlecardmaker
     container_name: title-card-maker
@@ -354,4 +317,39 @@ x-common-media: &media
       TCM_FREQUENCY: 2h
     labels:
       traefik.enable: false
+
+  immich:
+    image: ghcr.io/imagegenius/immich
+    container_name: photos
+    <<: *common
+    environment:
+      <<: *env-vars
+      DB_HOSTNAME: pg-vectors
+      DB_USERNAME: immich
+      DB_PASSWORD: ${DATABASE_PASSWORD}
+      DB_DATABASE_NAME: immich
+      DB_PORT: 5432
+      REDIS_HOSTNAME: redis
+      REDIS_PORT: 6379
+      MACHINE_LEARNING_WORKERS: 1
+      MACHINE_LEARNING_WORKER_TIMEOUT: 120
+    devices:
+      - /dev/dri:/dev/dri
+    healthcheck:
+      test: ["CMD-SHELL", "curl --fail localhost:8080/api/server-info/ping | grep 'pong' || exit 1"]
+      interval: 30s
+      timeout: 30s
+      retries: 5
+    depends_on:
+      - pg-vectors
+      - redis
+    volumes:
+      - config-immich:/config
+      - media-photos:/photos
+      - downloads-pictures:/import:ro #optional
+    labels:
+      traefik.http.services.immich.loadBalancer.server.port: 8080
+      traefik.http.routers.immich.entrypoints: websecure
+      traefik.http.routers.immich.tls: true
+      traefik.http.routers.immich.tls.certResolver: letsencrypt
 

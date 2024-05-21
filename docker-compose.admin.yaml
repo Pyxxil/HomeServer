@@ -22,8 +22,8 @@ x-common-admin: &admin
       - --entrypoints.web.address=:80
       - --entrypoints.web.forwardedHeaders.insecure=false
       - --entrypoints.web.proxyProtocol.insecure=false
-      - --entryPoints.web.forwardedHeaders.trustedIPs=10.0.0.0/8,172.0.0.0/8,192.168.0.0/16,fc00::/7,100.0.0.0/8
-      - --entryPoints.web.proxyProtocol.trustedIPs=10.0.0.0/8,172.0.0.0/8,192.168.0.0/16,fc00::/7,100.0.0.0/8
+      - --entryPoints.web.forwardedHeaders.trustedIPs=10.0.0.0/8,172.0.0.0/8,192.168.0.0/16,fc00::/7,100.64.0.0/10
+      - --entryPoints.web.proxyProtocol.trustedIPs=10.0.0.0/8,172.0.0.0/8,192.168.0.0/16,fc00::/7,100.64.0.0/10
       - --entrypoints.websecure.address=:443
       - --entrypoints.websecure.http.middlewares=compress@file
       - --entrypoints.websecure.http.tls.certResolver=letsencrypt
@@ -31,8 +31,8 @@ x-common-admin: &admin
       - --entrypoints.websecure.http.tls.domains[0].sans=*.${DOMAIN}
       - --entrypoints.websecure.http3
       - --entrypoints.websecure.http3.advertisedport=443
-      - --entryPoints.websecure.forwardedHeaders.trustedIPs=10.0.0.0/8,172.0.0.0/8,192.168.0.0/16,fc00::/7,100.0.0.0/8
-      - --entryPoints.websecure.proxyProtocol.trustedIPs=10.0.0.0/8,172.0.0.0/8,192.168.0.0/16,fc00::/7,100.0.0.0/8
+      - --entryPoints.websecure.forwardedHeaders.trustedIPs=10.0.0.0/8,172.0.0.0/8,192.168.0.0/16,fc00::/7,100.64.0.0/10
+      - --entryPoints.websecure.proxyProtocol.trustedIPs=10.0.0.0/8,172.0.0.0/8,192.168.0.0/16,fc00::/7,100.64.0.0/10
       - --entrypoints.websecure.forwardedHeaders.insecure=false
       - --entrypoints.websecure.proxyProtocol.insecure=false
       - --log.format=json

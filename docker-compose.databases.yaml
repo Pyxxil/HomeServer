@@ -112,3 +112,24 @@ x-common-databases: &databases
     labels:
       traefik.enable: false
 
+  matter:
+    image: ghcr.io/home-assistant-libs/python-matter-server:stable
+    container_name: matter
+    restart: unless-stopped
+    <<: *logging
+    dns:
+      - 192.168.1.1
+    environment:
+      <<: *env-vars
+    # Required for mDNS to work correctly
+    network_mode: host
+    security_opt:
+      # Needed for Bluetooth via dbus
+      - apparmor:unconfined
+    volumes:
+      # Create an .env file that sets the USERDIR environment variable.
+      - config-matter:/data/
+      - /run/dbus:/run/dbus:ro
+    labels:
+      traefik.enable: false
+
