@@ -7,6 +7,8 @@ x-common-admin: &admin
       - web
     command:
       - --accesslog=true
+      - --accesslog.addinternals
+      - --accesslog.bufferingsize=100
       - --accesslog.format=json
       - --accesslog.filters.statuscodes=200,300-302
       - --accesslog.filters.retryattempts
@@ -35,8 +37,9 @@ x-common-admin: &admin
       - --entryPoints.websecure.proxyProtocol.trustedIPs=10.0.0.0/8,172.0.0.0/8,192.168.0.0/16,fc00::/7,100.64.0.0/10
       - --entrypoints.websecure.forwardedHeaders.insecure=false
       - --entrypoints.websecure.proxyProtocol.insecure=false
+      - --log.compress=true
       - --log.format=json
-      - --log.level=info
+      - --log.level=error
       - --ping=true
       - --metrics.prometheus=true
       - --metrics.prometheus.addServicesLabels=true

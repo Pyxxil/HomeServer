@@ -249,10 +249,6 @@ volumes:
     driver_opts:
       <<: *driver-opts
       device: ${DOWNLOAD_DIR}/Music
-  downloads-pictures:
-    driver_opts:
-      <<: *driver-opts
-      device: ${DATA_DIR}/Pictures
   media:
     driver_opts:
       <<: *driver-opts

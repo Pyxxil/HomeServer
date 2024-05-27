@@ -6,8 +6,7 @@ x-common-media: &media
     volumes:
       - config-scripts:/scripts
       - config-radarr:/config
-      - media-movies:/movies
-      - downloads:/downloads
+      - media:/media
     healthcheck:
       test: ["CMD-SHELL", "curl --fail localhost:7878"]
       interval: 45s
@@ -29,8 +28,7 @@ x-common-media: &media
     volumes:
       - config-scripts:/scripts
       - config-sonarr:/config
-      - media-shows:/shows
-      - downloads:/downloads
+      - media:/media
     healthcheck:
       test: ["CMD-SHELL", "curl --fail localhost:8989"]
       interval: 45s
@@ -52,8 +50,7 @@ x-common-media: &media
     volumes:
       - config-scripts:/scripts
       - config-readarr:/config
-      - media-books:/books
-      - downloads:/downloads
+      - media:/media
     healthcheck:
       test: ["CMD-SHELL", "curl --fail localhost:8787"]
       interval: 45s
@@ -147,7 +144,7 @@ x-common-media: &media
           memory: 8G
     volumes:
       - config-qbittorrent:/config
-      - downloads:/downloads
+      - media:/media
     healthcheck:
       test: ["CMD-SHELL", "curl --fail localhost:8980"]
       interval: 1m30s
@@ -209,11 +206,7 @@ x-common-media: &media
     volumes:
       - config-jellyfin:/config
       - config-jellyfin-cache:/cache
-      - media-movies:/Movies
-      - media-shows:/Television Shows
-      - media-music:/Music
-      - media-youtube:/Youtube
-      - media-books:/Books
+      - media:/media
     group_add:
       - "989" # getent group render | cut -d: -f3
       - "986" # getent group video | cut -d: -f3
@@ -221,7 +214,7 @@ x-common-media: &media
     security_opt:
       - seccomp:unconfined
     devices:
-      - /dev/dri:/dev/dri
+      - /dev/dri/renderD128:/dev/dri/renderD128
       - /dev/kfd:/dev/kfd
     labels:
       traefik.http.services.watch.loadBalancer.server.port: 8096
@@ -305,7 +298,7 @@ x-common-media: &media
     volumes:
       - config-title:/config
       - config-title-logs:/maker/logs
-      - media-shows:/Television Shows
+      - media:/media
     deploy:
       resources:
         limits:
@@ -314,7 +307,7 @@ x-common-media: &media
       <<: *env-vars
       TCM_MISSING: /config/missing.yml
       TCM_RUNTIME: 23:00
-      TCM_FREQUENCY: 2h
+      TCM_FREQUENCY: 30m
     labels:
       traefik.enable: false
 
@@ -346,7 +339,6 @@ x-common-media: &media
     volumes:
       - config-immich:/config
       - media-photos:/photos
-      - downloads-pictures:/import:ro #optional
     labels:
       traefik.http.services.immich.loadBalancer.server.port: 8080
       traefik.http.routers.immich.entrypoints: websecure
