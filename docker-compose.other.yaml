@@ -34,10 +34,7 @@ x-common-other: &other
       - postgres
     healthcheck:
       test: curl -fSs localhost/api/healthcheck || exit 1
-      interval: 10s
-      retries: 3
-      start_period: 30s
-      timeout: 10s
+      <<: *healthcheck
     labels:
       traefik.http.services.speedtest.loadbalancer.server.port: 80
       traefik.http.routers.speedtest.entrypoints: websecure
@@ -54,9 +51,5 @@ x-common-other: &other
     volumes:
       - config-adguardhome-sync:/config
     labels:
-      traefik.http.services.adguardhomesync.loadbalancer.server.port: 8080
-      traefik.http.routers.adguardhomesync.entrypoints: websecure
-      traefik.http.routers.adguardhomesync.tls: true
-      traefik.http.routers.adguardhomesync.tls.certResolver: letsencrypt
-      traefik.docker.network: web
+      traefik.enable: false
 

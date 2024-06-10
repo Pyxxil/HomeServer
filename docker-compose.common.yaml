@@ -7,6 +7,13 @@ x-common-driver-variables: &driver-opts
   type: none
   o: bind
 
+x-common-healthcheck-variables: &healthcheck
+  interval: 60s
+  timeout: 10s
+  retries: 3
+  start_period: 30s
+  start_interval: 5s
+
 x-common-networks: &networks
   networks:
     - web
@@ -28,6 +35,11 @@ networks:
   web:
     name: web
     external: false
+    enable_ipv6: true
+    ipam:
+      config:
+        - subnet: fd00::/112
+        - subnet: 172.20.0.0/14
   internal:
     name: internal
     external: false
@@ -113,10 +125,6 @@ volumes:
     driver_opts:
       <<: *driver-opts
       device: ${CONFIG_DIR}/loki/data
-  config-mailrise:
-    driver_opts:
-      <<: *driver-opts
-      device: ${CONFIG_DIR}/mailrise
   config-matter:
     driver_opts:
       <<: *driver-opts
@@ -137,6 +145,10 @@ volumes:
     driver_opts:
       <<: *driver-opts
       device: ${CONFIG_DIR}/ntfy/cache
+  config-penpot:
+    driver_opts:
+      <<: *driver-opts
+      device: ${CONFIG_DIR}/penpot
   config-s3:
     driver_opts:
       <<: *driver-opts
@@ -241,6 +253,10 @@ volumes:
     driver_opts:
       <<: *driver-opts
       device: ${CONFIG_DIR}/whisper
+  config-wyl:
+    driver_opts:
+      <<: *driver-opts
+      device: ${CONFIG_DIR}/wyl
   downloads:
     driver_opts:
       <<: *driver-opts

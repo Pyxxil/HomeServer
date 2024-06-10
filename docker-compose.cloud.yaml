@@ -36,10 +36,7 @@ x-common-cloud: &cloud
           "--spider",
           "http://localhost:3456/api/v1/info",
         ]
-      interval: 30s
-      timeout: 30s
-      retries: 5
-      start_period: 30s
+      <<: *healthcheck
     labels:
       traefik.http.routers.todo.entrypoints: websecure
       traefik.http.routers.todo.tls: true
@@ -59,9 +56,7 @@ x-common-cloud: &cloud
       - 21027:21027/udp
     healthcheck:
       test: nc -z 127.0.0.1 8384 || exit 1
-      interval: 30s
-      timeout: 3s
-      retries: 3
+      <<: *healthcheck
     labels:
       traefik.http.routers.sync.entrypoints: websecure
       traefik.http.services.sync.loadbalancer.server.port: 8384
@@ -82,6 +77,9 @@ x-common-cloud: &cloud
       SMTP_SECURITY: starttls
       SMTP_HOST: ${SMTP_HOST}
       SMTP_FROM: vault@${DOMAIN}
+      SMTP_FROM_NAME: Vaultwarden
+      SMTP_USERNAME: ${SMTP_USER}
+      SMTP_PASSWORD: ${SMTP_PASS}
       DATABASE_URL: postgresql://${DATABASE_USERNAME}:${DATABASE_PASSWORD}@postgres:5432/vaultwarden
     volumes:
       - config-vaultwarden:/data
@@ -106,10 +104,7 @@ x-common-cloud: &cloud
           "CMD-SHELL",
           "curl -fsS 'http://localhost/i/' | grep -q 'jsonVars' || exit 1",
         ]
-      interval: 30s
-      timeout: 30s
-      retries: 5
-      start_period: 30s
+      <<: *healthcheck
     labels:
       traefik.http.routers.freshrss.entrypoints: websecure
       traefik.http.routers.freshrss.tls: true
@@ -127,10 +122,7 @@ x-common-cloud: &cloud
       - minio
     healthcheck:
       test: ["CMD-SHELL", "/bin/netstat -pant | /bin/grep ':3000'"]
-      interval: 30s
-      timeout: 30s
-      retries: 5
-      start_period: 30s
+      <<: *healthcheck
     labels:
       traefik.http.services.outline.loadbalancer.server.port: 3000
       traefik.http.routers.outline.entrypoints: websecure
@@ -162,10 +154,7 @@ x-common-cloud: &cloud
           "--spider",
           "http://localhost:8123/manifest.json",
         ]
-      interval: 30s
-      timeout: 30s
-      retries: 5
-      start_period: 30s
+      <<: *healthcheck
     volumes:
       - config-home-assistant:/config
       - /etc/localtime:/etc/localtime:ro
@@ -230,10 +219,7 @@ x-common-cloud: &cloud
           "CMD-SHELL",
           "curl -fsS 'http://localhost:5000/api/' | grep -q -i 'alive and healthy' || exit 1",
         ]
-      interval: 30s
-      timeout: 30s
-      retries: 5
-      start_period: 30s
+      <<: *healthcheck
     deploy:
       resources:
         limits:
@@ -260,4 +246,79 @@ x-common-cloud: &cloud
       traefik.http.routers.frigate.tls: true
       traefik.http.routers.frigate.tls.certResolver: letsencrypt
       traefik.http.routers.frigate.middlewares: auth@file
+
+  penpot-frontend:
+    image: penpotapp/frontend:latest
+    container_name: design
+    <<: *common
+    volumes:
+      - config-penpot:/opt/data/assets
+    ports:
+      - 9001:80
+    depends_on:
+      - penpot-backend
+      - penpot-exporter
+    environment:
+      <<: *env-vars
+      PENPOT_FLAGS: disable-login-with-password disable-registration enable-login-with-oidc
+    labels:
+      traefik.http.routers.penpot.entrypoints: websecure
+      traefik.http.routers.penpot.tls: true
+      traefik.http.routers.penpot.tls.certResolver: letsencrypt
+      traefik.http.services.penpot.loadbalancer.server.port: 80
+
+  penpot-backend:
+    image: penpotapp/backend:latest
+    container_name: penpot-api
+    <<: *common
+    volumes:
+      - config-penpot:/opt/data/assets
+    depends_on:
+      - postgres
+      - redis
+      - minio
+    environment:
+      <<: *env-vars
+      PENPOT_FLAGS: disable-registration disable-login-with-password disable-email-verification disable-smtp enable-prepl-server enable-login-with-oidc disable-telemetry
+      PENPOT_SECRET_KEY: ${PENPOT_SECRET_KEY}
+      PENPOT_PREPL_HOST: 0.0.0.0
+      PENPOT_PUBLIC_URI: https://design.${DOMAIN}
+      PENPOT_DATABASE_URI: postgresql://postgres/penpot
+      PENPOT_DATABASE_USERNAME: ${DATABASE_USERNAME}
+      PENPOT_DATABASE_PASSWORD: ${DATABASE_PASSWORD}
+      PENPOT_REDIS_URI: redis://redis/0
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
+      PENPOT_ASSETS_STORAGE_BACKEND: assets-s3
+      PENPOT_STORAGE_ASSETS_S3_ENDPOINT: https://minioapi.${DOMAIN}
+      PENPOT_STORAGE_ASSETS_S3_BUCKET: penpot
+      PENPOT_TELEMETRY_ENABLED: false
+      #PENPOT_SMTP_DEFAULT_FROM: no-reply@example.com
+      #PENPOT_SMTP_DEFAULT_REPLY_TO: no-reply@example.com
+      #PENPOT_SMTP_HOST: penpot-mailcatch
+      #PENPOT_SMTP_PORT: 1025
+      #PENPOT_SMTP_USERNAME: 
+      #PENPOT_SMTP_PASSWORD: 
+      #PENPOT_SMTP_TLS: 
+      #PENPOT_SMTP_SSL: 
+      PENPOT_OIDC_CLIENT_ID: penpot
+      PENPOT_OIDC_BASE_URI: https://auth.${DOMAIN}
+      PENPOT_OIDC_CLIENT_SECRET: ${PENPOT_CLIENT_SECRET}
+      PENPOT_OIDC_NAME_ATTR: uid
+      PENPOT_OIDC_EMAIL_ATTR: email
+    labels:
+      traefik.enable: false
+
+  penpot-exporter:
+    image: penpotapp/exporter:latest
+    container_name: penpot-exporter
+    <<: *common
+    depends_on:
+      - redis
+    environment:
+      <<: *env-vars
+      PENPOT_PUBLIC_URI: https://design.${DOMAIN}
+      PENPOT_REDIS_URI: redis://redis/0
+    labels:
+      traefik.enable: false
 

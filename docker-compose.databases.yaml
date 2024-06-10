@@ -11,9 +11,8 @@ x-common-databases: &databases
       - ./postgres:/docker-entrypoint-initdb.d
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DATABASE_USERNAME} -d ${TODO_DATABASE}"]
-      interval: 30s
-      timeout: 20s
-      retries: 3
+      <<: *healthcheck
+    user: ${PUID}:${PGID}
     environment:
       <<: *env-vars
       POSTGRES_USER: ${DATABASE_USERNAME}
@@ -33,9 +32,8 @@ x-common-databases: &databases
       - config-pg-vectors:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U immich -d immich"]
-      interval: 30s
-      timeout: 20s
-      retries: 3
+      <<: *healthcheck
+    user: ${PUID}:${PGID}
     environment:
       <<: *env-vars
       POSTGRES_USER: immich
@@ -55,9 +53,7 @@ x-common-databases: &databases
       - config-redis:/data
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 30s
-      retries: 3
+      <<: *healthcheck
     labels:
       traefik.enable: false
 
@@ -75,10 +71,7 @@ x-common-databases: &databases
       MINIO_PROMETHEUS_AUTH_TYPE: "public"
     healthcheck:
       test: timeout 5s bash -c ':> /dev/tcp/127.0.0.1/9000' || exit 1
-      interval: 5s
-      retries: 1
-      start_period: 5s
-      timeout: 5s
+      <<: *healthcheck
     labels:
       traefik.http.services.minio.loadbalancer.server.port: 9001
       traefik.http.routers.minio.entrypoints: websecure
@@ -105,10 +98,7 @@ x-common-databases: &databases
       - config-mosquitto:/mosquitto/config
     healthcheck:
       test: ["CMD", "mosquitto_sub", "-t", "$$SYS/#", "-C", "1", "-i", "healthcheck", "-W", "3", "-u", "${FRIGATE_MQTT_USERNAME}", "-P", "${FRIGATE_MQTT_PASSWORD}"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 20s
+      <<: *healthcheck
     labels:
       traefik.enable: false
 

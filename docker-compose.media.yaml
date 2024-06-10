@@ -9,9 +9,7 @@ x-common-media: &media
       - media:/media
     healthcheck:
       test: ["CMD-SHELL", "curl --fail localhost:7878"]
-      interval: 45s
-      timeout: 30s
-      retries: 3
+      <<: *healthcheck
     labels:
       traefik.http.routers.radarr.rule:
         Host(`request.${DOMAIN}`) && PathPrefix(`/movies`)
@@ -31,9 +29,7 @@ x-common-media: &media
       - media:/media
     healthcheck:
       test: ["CMD-SHELL", "curl --fail localhost:8989"]
-      interval: 45s
-      timeout: 30s
-      retries: 3
+      <<: *healthcheck
     labels:
       traefik.http.routers.sonarr.rule:
         Host(`request.${DOMAIN}`) && PathPrefix(`/shows`)
@@ -53,9 +49,7 @@ x-common-media: &media
       - media:/media
     healthcheck:
       test: ["CMD-SHELL", "curl --fail localhost:8787"]
-      interval: 45s
-      timeout: 30s
-      retries: 3
+      <<: *healthcheck
     labels:
       traefik.http.routers.readarr.rule:
         Host(`request.${DOMAIN}`) && PathPrefix(`/books`)
@@ -91,9 +85,7 @@ x-common-media: &media
       - config-prowlarr:/config
     healthcheck:
       test: ["CMD-SHELL", "curl --fail localhost:9696"]
-      interval: 45s
-      timeout: 30s
-      retries: 3
+      <<: *healthcheck
     labels:
       traefik.http.routers.prowlarr.entrypoints: websecure
       traefik.http.services.prowlarr.loadbalancer.server.port: 9696
@@ -123,9 +115,7 @@ x-common-media: &media
       PROMETHEUS_ENABLED: true
     healthcheck:
       test: ["CMD-SHELL", "curl --fail localhost:8191/health"]
-      interval: 45s
-      timeout: 30s
-      retries: 3
+      <<: *healthcheck
     labels:
       traefik.enable: false
 
@@ -147,10 +137,7 @@ x-common-media: &media
       - media:/media
     healthcheck:
       test: ["CMD-SHELL", "curl --fail localhost:8980"]
-      interval: 1m30s
-      timeout: 30s
-      retries: 5
-      start_period: 30s
+      <<: *healthcheck
     labels:
       traefik.http.routers.qbittorrent.entrypoints: websecure
       traefik.http.services.qbittorrent.loadbalancer.server.port: 8980
@@ -181,10 +168,7 @@ x-common-media: &media
           "--spider",
           "http://localhost:5055",
         ]
-      interval: 1m30s
-      timeout: 30s
-      retries: 5
-      start_period: 30s
+      <<: *healthcheck
     labels:
       traefik.http.routers.jellyseerr.entrypoints: websecure
       traefik.http.services.jellyseerr.loadbalancer.server.port: 5055
@@ -203,6 +187,10 @@ x-common-media: &media
       JELLYFIN_PublishedServerUrl: https://watch.${DOMAIN}
       JELLYFIN_FFmpeg__probesize: 50000000
       JELLYFIN_FFmpeg__analyzeduration: 2000000000
+    healthcheck:
+      test:
+        [ "CMD-SHELL", "curl -i --fail http://localhost:8096/health"]
+      <<: *healthcheck
     volumes:
       - config-jellyfin:/config
       - config-jellyfin-cache:/cache
@@ -249,10 +237,7 @@ x-common-media: &media
           "--spider",
           "http://localhost:8080",
         ]
-      interval: 1m30s
-      timeout: 30s
-      retries: 5
-      start_period: 10s
+      <<: *healthcheck
     labels:
       traefik.http.services.podgrab.loadBalancer.server.port: 8080
       traefik.http.routers.podgrab.entrypoints: websecure
@@ -268,10 +253,7 @@ x-common-media: &media
       - media-books:/config
     healthcheck:
       test: ["CMD-SHELL", "curl --fail localhost:8080"]
-      interval: 1m30s
-      timeout: 30s
-      retries: 5
-      start_period: 30s
+      <<: *healthcheck
     labels:
       traefik.http.services.calibre.loadBalancer.server.port: 8080
       traefik.http.routers.calibre.entrypoints: websecure
@@ -285,15 +267,17 @@ x-common-media: &media
     <<: *common
     volumes:
       - config-beets:/config
-      - media-music:/music
-      - downloads-music:/downloads
+      - media:/media
     labels:
       traefik.enable: false
 
   title-card-maker:
     image: collinheist/titlecardmaker
     container_name: title-card-maker
-    <<: *common
+    restart: unless-stopped
+    <<: *logging
+    networks:
+      - internal
     command: python3 main.py --run
     volumes:
       - config-title:/config
@@ -330,9 +314,7 @@ x-common-media: &media
       - /dev/dri:/dev/dri
     healthcheck:
       test: ["CMD-SHELL", "curl --fail localhost:8080/api/server-info/ping | grep 'pong' || exit 1"]
-      interval: 30s
-      timeout: 30s
-      retries: 5
+      <<: *healthcheck
     depends_on:
       - pg-vectors
       - redis

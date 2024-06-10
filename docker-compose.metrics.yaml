@@ -12,10 +12,7 @@ x-common-metrics: &metrics
       - config-prometheus:/etc/prometheus
     healthcheck:
       test: ["CMD-SHELL", "wget --spider http://localhost:9090 || exit 1"]
-      interval: 10s
-      timeout: 15s
-      retries: 10
-      start_period: 40s
+      <<: *healthcheck
     labels:
       traefik.http.routers.prometheus.entrypoints: websecure
       traefik.http.services.prometheus.loadbalancer.server.port: 9090
@@ -39,10 +36,7 @@ x-common-metrics: &metrics
       - config-grafana-data:/var/lib/grafana
     healthcheck:
       test: ["CMD-SHELL", "curl http://localhost:3000/healthz | grep -i 'ok' || exit 1"]
-      interval: 10s
-      timeout: 15s
-      retries: 10
-      start_period: 40s
+      <<: *healthcheck
     labels:
       traefik.http.services.grafana.loadBalancer.server.port: 3000
       traefik.http.routers.grafana.entrypoints: websecure
@@ -70,10 +64,8 @@ x-common-metrics: &metrics
           "--spider",
           "http://localhost:3100/ready",
         ]
-      interval: 10s
-      timeout: 15s
-      retries: 10
-      start_period: 40s
+      <<: *healthcheck
+    user: ${PUID}:${PGID}
     labels:
       traefik.enable: false
 
@@ -120,9 +112,7 @@ x-common-metrics: &metrics
       - /:/host:ro,rslave
     healthcheck:
       test: ["CMD-SHELL", "/bin/netstat -pant | /bin/grep ':9100'"]
-      interval: 45s
-      timeout: 30s
-      retries: 3
+      <<: *healthcheck
     labels:
       traefik.enable: false
 
