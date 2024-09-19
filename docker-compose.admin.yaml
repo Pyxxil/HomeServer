@@ -24,8 +24,11 @@ x-common-admin: &admin
       - --entrypoints.web.address=:80
       - --entrypoints.web.forwardedHeaders.insecure=false
       - --entrypoints.web.proxyProtocol.insecure=false
-      - --entryPoints.web.forwardedHeaders.trustedIPs=${TRUSTED_IPS}
-      - --entryPoints.web.proxyProtocol.trustedIPs=${TRUSTED_IPS}
+      - --entrypoints.web.forwardedHeaders.trustedIPs=${TRUSTED_IPS}
+      - --entrypoints.web.proxyProtocol.trustedIPs=${TRUSTED_IPS}
+      - --entrypoints.web.http.redirections.entryPoint.to=websecure
+      - --entrypoints.web.http.redirections.entryPoint.scheme=https
+      - --entrypoints.web.http.redirections.entrypoint.permanent=true
       - --entrypoints.websecure.address=:443
       - --entrypoints.websecure.http.middlewares=compress@file
       - --entrypoints.websecure.http.tls.certResolver=letsencrypt
@@ -39,7 +42,7 @@ x-common-admin: &admin
       - --entrypoints.websecure.proxyProtocol.insecure=false
       - --log.compress=true
       - --log.format=json
-      - --log.level=error
+      - --log.level=info
       - --ping=true
       - --metrics.prometheus=true
       - --metrics.prometheus.addServicesLabels=true
@@ -55,7 +58,6 @@ x-common-admin: &admin
     environment:
       <<: *env-vars
       CLOUDFLARE_DNS_API_TOKEN: ${CLOUDFLARE_DNS_API_TOKEN}
-      OTEL_SERVICE_NAME: traefik
     ports:
       - 0.0.0.0:80:80
       - 0.0.0.0:443:443/udp
@@ -78,11 +80,6 @@ x-common-admin: &admin
       traefik.http.routers.dashboard.tls: true
       traefik.http.routers.dashboard.tls.certResolver: letsencrypt
       traefik.http.routers.dashboard.entrypoints: websecure
-      traefik.http.routers.http-catchall.rule: hostregexp(`{host:.+}`)
-      traefik.http.routers.http-catchall.entrypoints: web
-      traefik.http.routers.http-catchall.middlewares: redirect-to-https
-      traefik.http.middlewares.redirect-to-https.redirectscheme.scheme: https
-      traefik.http.middlewares.redirect-to-https.redirectScheme.permanent: true
 
   whoami:
     image: traefik/whoami
@@ -117,8 +114,8 @@ x-common-admin: &admin
       - config-ldap-db:/var/lib/ldap
       - config-ldap:/etc/ldap/slapd.d
     ports:
-      - 389:389
-      - 636:636
+      - ${IP}:389:389
+      - ${IP}:636:636
     healthcheck:
       test: ["CMD-SHELL", "ldapsearch -Y EXTERNAL -H ldapi:/// | grep -i 'numresponses' || exit 1"]
       <<: *healthcheck
@@ -172,26 +169,6 @@ x-common-admin: &admin
       traefik.http.routers.ldap-user-manager.tls: true
       traefik.http.routers.ldap-user-manager.tls.certResolver: letsencrypt
 
-  diun:
-    image: crazymax/diun
-    container_name: diun
-    command: serve
-    hostname: diun.${DOMAIN}
-    <<: *common
-    volumes:
-      - config-diun:/data
-      - /var/run/docker.sock:/var/run/docker.sock
-    environment:
-      <<: *env-vars
-      DIUN_WATCH_SCHEDULE: 0 */12 * * *
-      DIUN_PROVIDERS_DOCKER: true
-      DIUN_PROVIDERS_DOCKER_WATCHBYDEFAULT: true
-      DIUN_NOTIF_NTFY_ENDPOINT: http://ntfy
-      DIUN_NOTIF_NTFY_TOPIC: server
-      DIUN_WATCH_RUNONSTARTUP: true
-    labels:
-      traefik.enable: false
-
   ntfy:
     image: binwiederhier/ntfy
     container_name: ntfy
@@ -209,53 +186,4 @@ x-common-admin: &admin
       traefik.http.services.ntfy.loadbalancer.server.port: 80
       traefik.http.routers.ntfy.tls: true
       traefik.http.routers.ntfy.tls.certresolver: letsencrypt
-
-  alerting:
-    container_name: alerts
-    image: saibe1111/grafana-to-ntfy
-    <<: *common
-    environment:
-      <<: *env-vars
-      NTFY_TOPIC: server
-      NTFY_SERVER: http://ntfy
-    labels:
-      traefik.enable: false
-
-  fan_controller:
-    image: ghcr.io/tigerblue77/dell_idrac_fan_controller:latest
-    container_name: fan-controller
-    <<: *common
-    environment:
-      <<: *env-vars
-      IDRAC_HOST: ${IDRAC_IP}
-      IDRAC_USERNAME: ${IDRAC_USER}
-      IDRAC_PASSWORD: ${IDRAC_PASS}
-      FAN_SPEED: 0xf
-      CPU_TEMPERATURE_THRESHOLD: 65
-      CHECK_INTERVAL: 15
-      DISABLE_THIRD_PARTY_PCIE_CARD_DELL_DEFAULT_COOLING_RESPONSE: true
-    labels:
-      traefik.enable: false
-
-  wyl:
-    container_name: network
-    image: aceberg/watchyourlan
-    network_mode: "host"
-    dns:
-      - 192.168.1.1
-    <<: *logging
-    volumes:
-      - config-wyl:/data
-    environment:
-      <<: *env-vars
-      IFACE: enp3s0
-      DBPATH: /data/db.sqlite
-      GUIIP: ${IP}
-      GUIPORT: 8840
-      TIMEOUT: 120
-      SHOUTRRR_URL: generic+https://ntfy.${DOMAIN}/server
-      THEME: vapor
-      IGNOREIP: no
-    labels:
-      traefik.enable: false
 

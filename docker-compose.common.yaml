@@ -61,10 +61,6 @@ volumes:
     driver_opts:
       <<: *driver-opts
       device: ${CONFIG_DIR}/beets
-  config-diun:
-    driver_opts:
-      <<: *driver-opts
-      device: ${CONFIG_DIR}/diun
   config-freshrss:
     driver_opts:
       <<: *driver-opts

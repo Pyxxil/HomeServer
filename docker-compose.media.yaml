@@ -107,11 +107,13 @@ x-common-media: &media
       traefik.enable: false
 
   flaresolverr:
-    image: ghcr.io/flaresolverr/flaresolverr
+    #image: ghcr.io/flaresolverr/flaresolverr
+    image: 21hsmw/flaresolverr:fixlooping
     container_name: flaresolverr
     <<: *common
     environment:
       <<: *env-vars
+      LOG_LEVEL: debug
       PROMETHEUS_ENABLED: true
     healthcheck:
       test: ["CMD-SHELL", "curl --fail localhost:8191/health"]
@@ -128,6 +130,9 @@ x-common-media: &media
       WEBUI_PORT: 8980
       DOCKER_MODS: linuxserver/mods:universal-stdout-logs
       LOGS_TO_STDOUT: "/config/qBittorrent/logs/qbittorrent.log"
+      TORRENTING_PORT: 58943
+    ports:
+      - 58943:58943
     deploy:
       resources:
         limits:
@@ -272,7 +277,7 @@ x-common-media: &media
       traefik.enable: false
 
   title-card-maker:
-    image: collinheist/titlecardmaker
+    image: collinheist/titlecardmaker:develop
     container_name: title-card-maker
     restart: unless-stopped
     <<: *logging

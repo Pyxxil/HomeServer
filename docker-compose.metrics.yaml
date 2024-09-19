@@ -43,49 +43,6 @@ x-common-metrics: &metrics
       traefik.http.routers.grafana.tls: true
       traefik.http.routers.grafana.tls.certResolver: letsencrypt
 
-  loki:
-    container_name: loki
-    image: grafana/loki
-    <<: *common
-    command: -config.file=/etc/loki/loki-config.yaml
-    volumes:
-      - config-loki:/etc/loki
-      - config-loki-data:/loki
-    depends_on:
-      - redis
-      - minio
-    healthcheck:
-      test:
-        [
-          "CMD",
-          "wget",
-          "--no-verbose",
-          "--tries=1",
-          "--spider",
-          "http://localhost:3100/ready",
-        ]
-      <<: *healthcheck
-    user: ${PUID}:${PGID}
-    labels:
-      traefik.enable: false
-
-  promtail:
-    container_name: logs
-    image: grafana/promtail
-    <<: *common
-    command: -config.file=/etc/promtail/promtail-config.yaml
-    volumes:
-      - /var/lib/docker/containers:/var/lib/docker/containers:ro
-      - config-promtail:/etc/promtail
-    depends_on:
-      - loki
-    labels:
-      traefik.http.services.promtail.loadBalancer.server.port: 9080
-      traefik.http.routers.promtail.entrypoints: websecure
-      traefik.http.routers.promtail.tls: true
-      traefik.http.routers.promtail.tls.certResolver: letsencrypt
-      traefik.http.routers.promtail.middlewares: auth@file
-
   adguard_exporter:
     image: ebrianne/adguard-exporter
     container_name: adguard-exporter
@@ -116,37 +73,3 @@ x-common-metrics: &metrics
     labels:
       traefik.enable: false
 
-  postgres-exporter:
-    image: quay.io/prometheuscommunity/postgres-exporter
-    container_name: postgres-exporter
-    <<: *common
-    depends_on:
-      - postgres
-    networks:
-      - internal
-    environment:
-      <<: *env-vars
-      DATA_SOURCE_NAME: "postgresql://${DATABASE_USERNAME}:${DATABASE_PASSWORD}@postgres?sslmode=disable,postgresql://immich:${DATABASE_PASSWORD}@pg-vectors?sslmode=disable"
-      DATA_SOURCE_USER: ${DATABASE_USERNAME}
-      DATA_SOURCE_PASS: ${DATABASE_PASSWORD}
-      PG_EXPORTER_AUTO_DISCOVER_DATABASES: true
-    labels:
-      traefik.enable: false
-
-  smokeping:
-    image: lscr.io/linuxserver/smokeping:latest
-    container_name: smokeping
-    <<: *common
-    environment:
-      <<: *env-vars
-      MASTER_URL: https://smokeping.${DOMAIN}/smokeping/
-      CACHE_DIR: /tmp
-    volumes:
-      - config-smokeping:/config
-      - config-smokeping-data:/data
-    labels:
-      traefik.http.services.smokeping.loadBalancer.server.port: 80
-      traefik.http.routers.smokeping.entrypoints: websecure
-      traefik.http.routers.smokeping.tls: true
-      traefik.http.routers.smokeping.tls.certResolver: letsencrypt
-      traefik.http.routers.smokeping.middlewares: auth@file

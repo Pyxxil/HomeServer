@@ -93,7 +93,7 @@ x-common-databases: &databases
       - internal
     ports:
       - 1883:1883
-      - 8083:8083
+      - 127.0.0.1:8083:8083
     volumes:
       - config-mosquitto:/mosquitto/config
     healthcheck:

@@ -26,17 +26,6 @@ x-common-cloud: &cloud
       - config-vikunja:/app/vikunja/files
     depends_on:
       - postgres
-    healthcheck:
-      test:
-        [
-          "CMD",
-          "wget",
-          "--no-verbose",
-          "--tries=1",
-          "--spider",
-          "http://localhost:3456/api/v1/info",
-        ]
-      <<: *healthcheck
     labels:
       traefik.http.routers.todo.entrypoints: websecure
       traefik.http.routers.todo.tls: true
@@ -121,7 +110,7 @@ x-common-cloud: &cloud
       - redis
       - minio
     healthcheck:
-      test: ["CMD-SHELL", "/bin/netstat -pant | /bin/grep ':3000'"]
+      test: ["CMD-SHELL", "timeout 5s bash -c ':> /dev/tcp/127.0.0.1/3000' || exit 1"]
       <<: *healthcheck
     labels:
       traefik.http.services.outline.loadbalancer.server.port: 3000
@@ -161,45 +150,6 @@ x-common-cloud: &cloud
     labels:
       traefik.enable: false
 
-  mealie:
-    container_name: meals
-    image: hkotel/mealie:omni-nightly
-    hostname: meals.${DOMAIN}
-    <<: *common
-    depends_on:
-      - postgres
-    environment:
-      <<: *env-vars
-      DB_ENGINE: postgres
-      POSTGRES_USER: ${DATABASE_USERNAME}
-      POSTGRES_PASSWORD: ${DATABASE_PASSWORD}
-      POSTGRES_SERVER: postgres
-      POSTGRES_PORT: 5432
-      POSTGRES_DB: mealie
-      SMTP_HOST: ${SMTP_HOST}
-      SMTP_FROM_NAME: Mealie
-      SMTP_USER: ${SMTP_USER}
-      SMTP_PASSWORD: ${SMTP_PASS}
-      SMTP_FROM_EMAIL: meals@${DOMAIN}
-      SMTP_PORT: 25
-      SMTP_AUTH_STRATEGY: 'TLS'
-      BASE_URL: https://meals.${DOMAIN}
-      LDAP_AUTH_ENABLED: true
-      LDAP_TLS_INSECURE: true
-      LDAP_SERVER_URL: ldap://ldap
-      LDAP_BASE_DN: "dc=${DC_DOMAIN},dc=${TLD}"
-      LDAP_USER_FILTER: "(&(|(uid={input})(mail={input}))(objectClass=person))"
-      LDAP_ADMIN_FILTER: "(memberOf=cn=admins,ou=groups,dc=${DC_DOMAIN},dc=${TLD})"
-      LDAP_QUERY_BIND: "cn=admin,dc=${DC_DOMAIN},dc=${TLD}"
-      LDAP_QUERY_PASSWORD: "${LDAP_PASSWORD}"
-    volumes:
-      - config-mealie-data:/app/data
-    labels:
-      traefik.http.services.mealie.loadbalancer.server.port: 3000
-      traefik.http.routers.mealie.entrypoints: websecure
-      traefik.http.routers.mealie.tls: true
-      traefik.http.routers.mealie.tls.certResolver: letsencrypt
-
   frigate:
     container_name: frigate
     image: ghcr.io/blakeblackshear/frigate:stable
@@ -234,8 +184,6 @@ x-common-cloud: &cloud
       FRIGATE_REOLINK_PASSWORD: ${FRIGATE_REOLINK_PASSWORD}
       FRIGATE_REOLINK_IP: ${FRIGATE_REOLINK_IP}
     ports:
-      - 1984:1984/tcp
-      - 1984:1984/udp
       - 5000:5000
       - 8554:8554 # RTSP feeds
       - 8555:8555/tcp # WebRTC over tcp
@@ -246,79 +194,4 @@ x-common-cloud: &cloud
       traefik.http.routers.frigate.tls: true
       traefik.http.routers.frigate.tls.certResolver: letsencrypt
       traefik.http.routers.frigate.middlewares: auth@file
-
-  penpot-frontend:
-    image: penpotapp/frontend:latest
-    container_name: design
-    <<: *common
-    volumes:
-      - config-penpot:/opt/data/assets
-    ports:
-      - 9001:80
-    depends_on:
-      - penpot-backend
-      - penpot-exporter
-    environment:
-      <<: *env-vars
-      PENPOT_FLAGS: disable-login-with-password disable-registration enable-login-with-oidc
-    labels:
-      traefik.http.routers.penpot.entrypoints: websecure
-      traefik.http.routers.penpot.tls: true
-      traefik.http.routers.penpot.tls.certResolver: letsencrypt
-      traefik.http.services.penpot.loadbalancer.server.port: 80
-
-  penpot-backend:
-    image: penpotapp/backend:latest
-    container_name: penpot-api
-    <<: *common
-    volumes:
-      - config-penpot:/opt/data/assets
-    depends_on:
-      - postgres
-      - redis
-      - minio
-    environment:
-      <<: *env-vars
-      PENPOT_FLAGS: disable-registration disable-login-with-password disable-email-verification disable-smtp enable-prepl-server enable-login-with-oidc disable-telemetry
-      PENPOT_SECRET_KEY: ${PENPOT_SECRET_KEY}
-      PENPOT_PREPL_HOST: 0.0.0.0
-      PENPOT_PUBLIC_URI: https://design.${DOMAIN}
-      PENPOT_DATABASE_URI: postgresql://postgres/penpot
-      PENPOT_DATABASE_USERNAME: ${DATABASE_USERNAME}
-      PENPOT_DATABASE_PASSWORD: ${DATABASE_PASSWORD}
-      PENPOT_REDIS_URI: redis://redis/0
-      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
-      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
-      PENPOT_ASSETS_STORAGE_BACKEND: assets-s3
-      PENPOT_STORAGE_ASSETS_S3_ENDPOINT: https://minioapi.${DOMAIN}
-      PENPOT_STORAGE_ASSETS_S3_BUCKET: penpot
-      PENPOT_TELEMETRY_ENABLED: false
-      #PENPOT_SMTP_DEFAULT_FROM: no-reply@example.com
-      #PENPOT_SMTP_DEFAULT_REPLY_TO: no-reply@example.com
-      #PENPOT_SMTP_HOST: penpot-mailcatch
-      #PENPOT_SMTP_PORT: 1025
-      #PENPOT_SMTP_USERNAME: 
-      #PENPOT_SMTP_PASSWORD: 
-      #PENPOT_SMTP_TLS: 
-      #PENPOT_SMTP_SSL: 
-      PENPOT_OIDC_CLIENT_ID: penpot
-      PENPOT_OIDC_BASE_URI: https://auth.${DOMAIN}
-      PENPOT_OIDC_CLIENT_SECRET: ${PENPOT_CLIENT_SECRET}
-      PENPOT_OIDC_NAME_ATTR: uid
-      PENPOT_OIDC_EMAIL_ATTR: email
-    labels:
-      traefik.enable: false
-
-  penpot-exporter:
-    image: penpotapp/exporter:latest
-    container_name: penpot-exporter
-    <<: *common
-    depends_on:
-      - redis
-    environment:
-      <<: *env-vars
-      PENPOT_PUBLIC_URI: https://design.${DOMAIN}
-      PENPOT_REDIS_URI: redis://redis/0
-    labels:
-      traefik.enable: false
 
