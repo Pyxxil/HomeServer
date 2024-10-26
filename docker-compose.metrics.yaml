@@ -14,7 +14,8 @@ x-common-metrics: &metrics
       test: ["CMD-SHELL", "wget --spider http://localhost:9090 || exit 1"]
       <<: *healthcheck
     labels:
-      traefik.http.routers.prometheus.entrypoints: websecure
+      traefik.http.routers.prometheus.rule: Host(`prometheus.${DOMAIN}`) && $RESTRICTED
+      traefik.http.routers.prometheus.entryPoints: websecure
       traefik.http.services.prometheus.loadbalancer.server.port: 9090
       traefik.http.routers.prometheus.tls: true
       traefik.http.routers.prometheus.tls.certResolver: letsencrypt
@@ -38,26 +39,11 @@ x-common-metrics: &metrics
       test: ["CMD-SHELL", "curl http://localhost:3000/healthz | grep -i 'ok' || exit 1"]
       <<: *healthcheck
     labels:
+      traefik.http.routers.grafana.rule: Host(`metrics.${DOMAIN}`) && $RESTRICTED
       traefik.http.services.grafana.loadBalancer.server.port: 3000
-      traefik.http.routers.grafana.entrypoints: websecure
+      traefik.http.routers.grafana.entryPoints: websecure
       traefik.http.routers.grafana.tls: true
       traefik.http.routers.grafana.tls.certResolver: letsencrypt
-
-  adguard_exporter:
-    image: ebrianne/adguard-exporter
-    container_name: adguard-exporter
-    <<: *common
-    environment:
-      adguard_protocol: http
-      adguard_hostname: 192.168.1.1
-      adguard_username: ${ADGUARD_USERNAME}
-      adguard_password: ${ADGUARD_PASSWORD}
-      adguard_port: 81
-      server_port: 9617
-      interval: 10s
-      log_limit: 10000
-    labels:
-      traefik.enable: false
 
   node_exporter:
     image: quay.io/prometheus/node-exporter

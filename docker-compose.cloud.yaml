@@ -27,7 +27,8 @@ x-common-cloud: &cloud
     depends_on:
       - postgres
     labels:
-      traefik.http.routers.todo.entrypoints: websecure
+      traefik.http.routers.todo.rule: Host(`todo.${DOMAIN}`) && $RESTRICTED
+      traefik.http.routers.todo.entryPoints: websecure
       traefik.http.routers.todo.tls: true
       traefik.http.routers.todo.tls.certResolver: letsencrypt
 
@@ -38,16 +39,17 @@ x-common-cloud: &cloud
     <<: *common
     volumes:
       - config-syncthing:/config
-      - sync:/config/Sync
+      - sync:/Sync
     ports:
-      - 22000:22000/tcp
-      - 22000:22000/udp
-      - 21027:21027/udp
+      - ${IP}:22000:22000/tcp
+      - ${IP}:22000:22000/udp
+      - ${IP}:21027:21027/udp
     healthcheck:
       test: nc -z 127.0.0.1 8384 || exit 1
       <<: *healthcheck
     labels:
-      traefik.http.routers.sync.entrypoints: websecure
+      traefik.http.routers.sync.rule: Host(`sync.${DOMAIN}`) && $RESTRICTED
+      traefik.http.routers.sync.entryPoints: websecure
       traefik.http.services.sync.loadbalancer.server.port: 8384
       traefik.http.routers.sync.tls: true
       traefik.http.routers.sync.tls.certResolver: letsencrypt
@@ -75,11 +77,11 @@ x-common-cloud: &cloud
     depends_on:
       - postgres
     labels:
+      traefik.http.routers.vaultwarden.rule: Host(`vault.${DOMAIN}`) && $RESTRICTED
       traefik.http.services.vaultwarden.loadbalancer.server.port: 8800
-      traefik.http.routers.vaultwarden.entrypoints: websecure
+      traefik.http.routers.vaultwarden.entryPoints: websecure
       traefik.http.routers.vaultwarden.tls: true
       traefik.http.routers.vaultwarden.tls.certResolver: letsencrypt
-      traefik.docker.network: web
 
   freshrss:
     image: lscr.io/linuxserver/freshrss
@@ -95,10 +97,10 @@ x-common-cloud: &cloud
         ]
       <<: *healthcheck
     labels:
-      traefik.http.routers.freshrss.entrypoints: websecure
+      traefik.http.routers.freshrss.rule: Host(`rss.${DOMAIN}`) && $RESTRICTED
+      traefik.http.routers.freshrss.entryPoints: websecure
       traefik.http.routers.freshrss.tls: true
       traefik.http.routers.freshrss.tls.certResolver: letsencrypt
-      traefik.http.routers.freshrss.middlewares: auth@file
 
   wiki:
     image: outlinewiki/outline
@@ -113,14 +115,15 @@ x-common-cloud: &cloud
       test: ["CMD-SHELL", "timeout 5s bash -c ':> /dev/tcp/127.0.0.1/3000' || exit 1"]
       <<: *healthcheck
     labels:
+      traefik.http.routers.outline.rule: Host(`wiki.${DOMAIN}`) && $RESTRICTED
       traefik.http.services.outline.loadbalancer.server.port: 3000
-      traefik.http.routers.outline.entrypoints: websecure
+      traefik.http.routers.outline.entryPoints: websecure
       traefik.http.routers.outline.tls: true
       traefik.http.routers.outline.tls.certResolver: letsencrypt
 
-  homeassistant:
+  home:
     image: lscr.io/linuxserver/homeassistant
-    container_name: homeassistant
+    container_name: home
     restart: unless-stopped
     dns:
       - 192.168.1.1
@@ -153,10 +156,11 @@ x-common-cloud: &cloud
   frigate:
     container_name: frigate
     image: ghcr.io/blakeblackshear/frigate:stable
-    shm_size: 128mb # update for your cameras based on calculation above
+    shm_size: 128mb
     <<: *common
     depends_on:
-      - mosquitto
+      mosquitto:
+        condition: service_healthy
     devices:
       - /dev/dri/renderD128 # for hwaccel
     volumes:
@@ -184,14 +188,38 @@ x-common-cloud: &cloud
       FRIGATE_REOLINK_PASSWORD: ${FRIGATE_REOLINK_PASSWORD}
       FRIGATE_REOLINK_IP: ${FRIGATE_REOLINK_IP}
     ports:
-      - 5000:5000
-      - 8554:8554 # RTSP feeds
-      - 8555:8555/tcp # WebRTC over tcp
-      - 8555:8555/udp # WebRTC over udp
+      - ${IP}:5000:5000 # unathenticated access
+      - ${IP}:8554:8554 # RTSP feeds
     labels:
-      traefik.http.services.frigate.loadbalancer.server.port: 5000
-      traefik.http.routers.frigate.entrypoints: websecure
+      traefik.http.routers.frigate.rule: Host(`frigate.${DOMAIN}`) && $RESTRICTED
+      traefik.http.services.frigate.loadbalancer.server.port: 8971
+      traefik.http.routers.frigate.entryPoints: websecure
       traefik.http.routers.frigate.tls: true
       traefik.http.routers.frigate.tls.certResolver: letsencrypt
       traefik.http.routers.frigate.middlewares: auth@file
+
+  grimoire:
+    image: goniszewski/grimoire:latest
+    container_name: bookmarks
+    <<: *common
+    environment:
+      <<: *env-vars
+      PORT: 5173
+      PUBLIC_HTTPS_ONLY: true
+      PUBLIC_ORIGIN: "https://bookmarks.${DOMAIN}"
+      PUBLIC_SIGNUP_DISABLED: true
+    volumes:
+      - config-bookmarks:/app/data/
+    healthcheck:
+      test: wget --no-verbose --tries=1 --spider http://localhost:5173/api/health || exit 1
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    labels:
+      traefik.http.routers.bookmarks.rule: Host(`bookmarks.${DOMAIN}`) && $RESTRICTED
+      traefik.http.services.bookmarks.loadbalancer.server.port: 5173
+      traefik.http.routers.bookmarks.entryPoints: websecure
+      traefik.http.routers.bookmarks.tls: true
+      traefik.http.routers.bookmarks.tls.certResolver: letsencrypt
+      traefik.http.routers.bookmarks.middlewares: auth@file
 

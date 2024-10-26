@@ -12,19 +12,20 @@ x-common-healthcheck-variables: &healthcheck
   timeout: 10s
   retries: 3
   start_period: 30s
-  start_interval: 5s
+  start_interval: 15s
 
 x-common-networks: &networks
   networks:
-    - web
-    - internal
+    - frontend
+    - backend
 
 x-common-logging: &logging
   logging:
-    driver: "json-file"
+    driver: local
     options:
-      tag: "{{.ImageName}}|{{.Name}}|{{.ImageFullID}}|{{.FullID}}"
-      max-size: "50m"
+      compress: "true"
+      max-size: "10m"
+      max-file: "3"
 
 x-common-common: &common
   <<: [*networks, *logging]
@@ -32,17 +33,18 @@ x-common-common: &common
   environment: *env-vars
 
 networks:
-  web:
-    name: web
+  frontend:
+    name: frontend
     external: false
     enable_ipv6: true
     ipam:
       config:
         - subnet: fd00::/112
         - subnet: 172.20.0.0/14
-  internal:
-    name: internal
+  backend:
+    name: backend
     external: false
+    internal: true
 
 volumes:
   config-adguard:
@@ -61,6 +63,10 @@ volumes:
     driver_opts:
       <<: *driver-opts
       device: ${CONFIG_DIR}/beets
+  config-bookmarks:
+    driver_opts:
+      <<: *driver-opts
+      device: ${CONFIG_DIR}/bookmarks
   config-freshrss:
     driver_opts:
       <<: *driver-opts
@@ -109,26 +115,10 @@ volumes:
     driver_opts:
       <<: *driver-opts
       device: ${CONFIG_DIR}/ldap/db
-  config-lidarr:
-    driver_opts:
-      <<: *driver-opts
-      device: ${CONFIG_DIR}/lidarr
-  config-loki:
-    driver_opts:
-      <<: *driver-opts
-      device: ${CONFIG_DIR}/loki/config
-  config-loki-data:
-    driver_opts:
-      <<: *driver-opts
-      device: ${CONFIG_DIR}/loki/data
   config-matter:
     driver_opts:
       <<: *driver-opts
       device: ${CONFIG_DIR}/matter
-  config-mealie-data:
-    driver_opts:
-      <<: *driver-opts
-      device: ${CONFIG_DIR}/mealie/data
   config-mosquitto:
     driver_opts:
       <<: *driver-opts
@@ -141,10 +131,6 @@ volumes:
     driver_opts:
       <<: *driver-opts
       device: ${CONFIG_DIR}/ntfy/cache
-  config-penpot:
-    driver_opts:
-      <<: *driver-opts
-      device: ${CONFIG_DIR}/penpot
   config-s3:
     driver_opts:
       <<: *driver-opts
@@ -169,10 +155,6 @@ volumes:
     driver_opts:
       <<: *driver-opts
       device: ${CONFIG_DIR}/prometheus
-  config-promtail:
-    driver_opts:
-      <<: *driver-opts
-      device: ${CONFIG_DIR}/promtail
   config-prowlarr:
     driver_opts:
       <<: *driver-opts
@@ -181,6 +163,10 @@ volumes:
     driver_opts:
       <<: *driver-opts
       device: ${CONFIG_DIR}/qbittorrent
+  config-qbittorrent-manage:
+    driver_opts:
+      <<: *driver-opts
+      device: ${CONFIG_DIR}/qbittorrent-manage
   config-radarr:
     driver_opts:
       <<: *driver-opts
@@ -201,14 +187,6 @@ volumes:
     driver_opts:
       <<: *driver-opts
       device: ${CONFIG_DIR}/scripts
-  config-smokeping:
-    driver_opts:
-      <<: *driver-opts
-      device: ${CONFIG_DIR}/smokeping/config
-  config-smokeping-data:
-    driver_opts:
-      <<: *driver-opts
-      device: ${CONFIG_DIR}/smokeping/data
   config-sonarr:
     driver_opts:
       <<: *driver-opts
@@ -245,14 +223,6 @@ volumes:
     driver_opts:
       <<: *driver-opts
       device: ${CONFIG_DIR}/vikunja-config
-  config-whisper:
-    driver_opts:
-      <<: *driver-opts
-      device: ${CONFIG_DIR}/whisper
-  config-wyl:
-    driver_opts:
-      <<: *driver-opts
-      device: ${CONFIG_DIR}/wyl
   downloads:
     driver_opts:
       <<: *driver-opts
@@ -297,10 +267,6 @@ volumes:
     driver_opts:
       <<: *driver-opts
       device: ${DATA_DIR}/Youtube
-  models:
-    driver_opts:
-      <<: *driver-opts
-      device: ${DATA_DIR}/Models
   sync:
     driver_opts:
       <<: *driver-opts

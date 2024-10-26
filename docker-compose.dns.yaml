@@ -7,7 +7,8 @@ x-common-dns: &dns
     volumes:
       - config-adguard:/opt/adguardhome/conf
     labels:
+      traefik.http.routers.adguard.rule: Host(`adguard.${DOMAIN}`) && $RESTRICTED
       traefik.http.services.adguard.loadbalancer.server.port: 3000
-      traefik.http.routers.adguard.entrypoints: websecure
+      traefik.http.routers.adguard.entryPoints: websecure
       traefik.http.routers.adguard.tls: true
       traefik.http.routers.adguard.tls.certResolver: letsencrypt

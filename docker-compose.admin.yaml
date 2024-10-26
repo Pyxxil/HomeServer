@@ -4,7 +4,7 @@ x-common-admin: &admin
     image: traefik
     <<: *common
     networks:
-      - web
+      - frontend
     command:
       - --accesslog=true
       - --accesslog.addinternals
@@ -21,25 +21,28 @@ x-common-admin: &admin
       - --certificatesresolvers.letsencrypt.acme.dnschallenge.resolvers=1.1.1.1:53,8.8.8.8:53,9.9.9.9:53
       - --certificatesresolvers.letsencrypt.acme.email=${ADMIN_EMAIL}
       - --certificatesresolvers.letsencrypt.acme.storage=/config/acme.json
-      - --entrypoints.web.address=:80
-      - --entrypoints.web.forwardedHeaders.insecure=false
-      - --entrypoints.web.proxyProtocol.insecure=false
-      - --entrypoints.web.forwardedHeaders.trustedIPs=${TRUSTED_IPS}
-      - --entrypoints.web.proxyProtocol.trustedIPs=${TRUSTED_IPS}
-      - --entrypoints.web.http.redirections.entryPoint.to=websecure
-      - --entrypoints.web.http.redirections.entryPoint.scheme=https
-      - --entrypoints.web.http.redirections.entrypoint.permanent=true
-      - --entrypoints.websecure.address=:443
-      - --entrypoints.websecure.http.middlewares=compress@file
-      - --entrypoints.websecure.http.tls.certResolver=letsencrypt
-      - --entrypoints.websecure.http.tls.domains[0].main=${DOMAIN}
-      - --entrypoints.websecure.http.tls.domains[0].sans=*.${DOMAIN}
-      - --entrypoints.websecure.http3
-      - --entrypoints.websecure.http3.advertisedport=443
+      - --entryPoints.ldaps.address=:636/tcp
+      - --entryPoints.mqtts.address=:8883
+      - --entryPoints.web.address=:80
+      - --entryPoints.web.forwardedHeaders.insecure=false
+      - --entryPoints.web.proxyProtocol.insecure=false
+      - --entryPoints.web.forwardedHeaders.trustedIPs=${TRUSTED_IPS}
+      - --entryPoints.web.proxyProtocol.trustedIPs=${TRUSTED_IPS}
+      - --entryPoints.web.http.redirections.entryPoint.to=websecure
+      - --entryPoints.web.http.redirections.entryPoint.scheme=https
+      - --entryPoints.web.http.redirections.entryPoint.permanent=true
+      - --entryPoints.websecure.address=:443
+      - --entryPoints.websecure.http.middlewares=compress@file,security@file
+      - --entryPoints.websecure.http.tls.certResolver=letsencrypt
+      - --entryPoints.websecure.http.tls.domains[0].main=${DOMAIN}
+      - --entryPoints.websecure.http.tls.domains[0].sans=*.${DOMAIN}
+      - --entryPoints.websecure.http3
+      - --entryPoints.websecure.http3.advertisedport=443
       - --entryPoints.websecure.forwardedHeaders.trustedIPs=${TRUSTED_IPS}
       - --entryPoints.websecure.proxyProtocol.trustedIPs=${TRUSTED_IPS}
-      - --entrypoints.websecure.forwardedHeaders.insecure=false
-      - --entrypoints.websecure.proxyProtocol.insecure=false
+      - --entryPoints.websecure.forwardedHeaders.insecure=false
+      - --entryPoints.websecure.proxyProtocol.insecure=false
+      - --entryPoints.websecure.transport.respondingTimeouts.readTimeout=0s
       - --log.compress=true
       - --log.format=json
       - --log.level=info
@@ -53,7 +56,7 @@ x-common-admin: &admin
       - --providers.docker=true
       - --providers.docker.watch=true
       - --providers.docker.exposedbydefault=true
-      - --providers.docker.network=web
+      - --providers.docker.network=frontend
       - --providers.file.directory=/config
     environment:
       <<: *env-vars
@@ -62,9 +65,13 @@ x-common-admin: &admin
       - 0.0.0.0:80:80
       - 0.0.0.0:443:443/udp
       - 0.0.0.0:443:443/tcp
+      - 0.0.0.0:636:636/tcp
+      - 0.0.0.0:8883:8883
       - ":::80:80"
       - ":::443:443/udp"
       - ":::443:443/tcp"
+      - ":::636:636/tcp"
+      - ":::8883:8883"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - config-traefik:/config
@@ -74,17 +81,19 @@ x-common-admin: &admin
     depends_on:
       - auth
     labels:
-      traefik.http.routers.dashboard.rule: Host(`dash.${DOMAIN}`)
+      traefik.http.routers.dashboard.rule: Host(`dash.${DOMAIN}`) && $RESTRICTED
       traefik.http.routers.dashboard.service: api@internal
-      traefik.http.routers.dashboard.middlewares: auth@file
       traefik.http.routers.dashboard.tls: true
       traefik.http.routers.dashboard.tls.certResolver: letsencrypt
-      traefik.http.routers.dashboard.entrypoints: websecure
+      traefik.http.routers.dashboard.entryPoints: websecure
+      traefik.http.routers.dashboard.middlewares: auth@file
 
   whoami:
     image: traefik/whoami
     container_name: whoami
     <<: *common
+    labels:
+      traefik.http.routers.whoami.entryPoints: websecure
 
   auth:
     image: authelia/authelia
@@ -96,7 +105,7 @@ x-common-admin: &admin
       - config-authelia:/config
     labels:
       traefik.http.services.auth.loadbalancer.server.port: 9091
-      traefik.http.routers.auth.entrypoints: websecure
+      traefik.http.routers.auth.entryPoints: websecure
       traefik.http.routers.auth.tls: true
       traefik.http.routers.auth.tls.certResolver: letsencrypt
       traefik.http.middlewares.cors.headers.accesscontrolalloworiginlistregex: https://[a-z]+.${DOMAIN}
@@ -105,17 +114,12 @@ x-common-admin: &admin
   ldap:
     image: osixia/openldap
     container_name: ldap
+    <<: *common
     hostname: ldap.${DOMAIN}
     restart: always
-    <<: *logging
-    networks:
-      - internal
     volumes:
       - config-ldap-db:/var/lib/ldap
       - config-ldap:/etc/ldap/slapd.d
-    ports:
-      - ${IP}:389:389
-      - ${IP}:636:636
     healthcheck:
       test: ["CMD-SHELL", "ldapsearch -Y EXTERNAL -H ldapi:/// | grep -i 'numresponses' || exit 1"]
       <<: *healthcheck
@@ -130,11 +134,16 @@ x-common-admin: &admin
       LDAP_TLS: true
       LDAP_TLS_VERIFY_CLIENT: 'never'
     labels:
-      traefik.enable: false
+      traefik.tcp.routers.ldap.rule: HostSNI(`${DOMAIN}`)
+      traefik.tcp.services.ldap.loadbalancer.server.port: 389
+      traefik.tcp.routers.ldap.entryPoints: ldaps
+      traefik.tcp.routers.ldap.tls: true
+      traefik.tcp.routers.ldap.tls.certResolver: letsencrypt
 
   ldap-user-manager:
     image: wheelybird/ldap-user-manager
     container_name: account
+    hostname: account.${DOMAIN}
     <<: *common
     depends_on:
       - ldap
@@ -145,14 +154,14 @@ x-common-admin: &admin
       <<: *env-vars
       SERVER_HOSTNAME: account.${DOMAIN}
       ORGANISATION_NAME: ${ORGANISATION}
-      LDAP_URI: "ldaps://ldap"
+      LDAP_URI: "ldaps://${DOMAIN}"
       LDAP_BASE_DN: dc=${DC_DOMAIN},dc=${TLD}
       LDAP_ADMINS_GROUP: "admins"
       LDAP_ADMIN_BIND_DN: "cn=admin,dc=${DC_DOMAIN},dc=${TLD}"
       LDAP_ADMIN_BIND_PWD: ${LDAP_PASSWORD}
       LDAP_USES_NIS_SCHEMA: false
       LDAP_REQUIRE_STARTTLS: false
-      LDAP_IGNORE_CERT_ERRORS: true
+      LDAP_IGNORE_CERT_ERRORS: false
       LDAP_DEBUG: true
       NO_HTTPS: true
       SMTP_LOG_LEVEL: 3
@@ -165,7 +174,7 @@ x-common-admin: &admin
       EMAIL_DOMAIN: ${DOMAIN}
     labels:
       traefik.http.services.ldap-user-manager.loadbalancer.server.port: 80
-      traefik.http.routers.ldap-user-manager.entrypoints: websecure
+      traefik.http.routers.ldap-user-manager.entryPoints: websecure
       traefik.http.routers.ldap-user-manager.tls: true
       traefik.http.routers.ldap-user-manager.tls.certResolver: letsencrypt
 
@@ -182,8 +191,43 @@ x-common-admin: &admin
       test: ["CMD-SHELL", "wget -q --tries=1 http://localhost:80/v1/health -O - | grep -Eo '\"healthy\"\\s*:\\s*true' || exit 1"]
       <<: *healthcheck
     labels:
-      traefik.http.routers.ntfy.entrypoints: websecure
+      traefik.http.routers.ntfy.rule: Host(`ntfy.${DOMAIN}`) && $RESTRICTED
+      traefik.http.routers.ntfy.entryPoints: websecure
       traefik.http.services.ntfy.loadbalancer.server.port: 80
       traefik.http.routers.ntfy.tls: true
       traefik.http.routers.ntfy.tls.certresolver: letsencrypt
+
+  vpn:
+    image: qmcgaw/gluetun
+    container_name: vpn
+    <<: *common
+    cap_add:
+      - NET_ADMIN
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    sysctls:
+      - net.ipv6.conf.all.disable_ipv6=0
+    environment:
+      <<: *env-vars
+      VPN_SERVICE_PROVIDER: mullvad
+      VPN_TYPE: wireguard
+      WIREGUARD_PRIVATE_KEY: $MULLVAD_PRIVATE_KEY
+      WIREGUARD_ADDRESSES: $MULLVAD_ADDRESSES
+      SERVER_COUNTRIES: Switzerland,Sweden,Netherlands
+      OWNED_ONLY: yes
+      WIREGUARD_ENDPOINT_PORT: $MULLVAD_ENDPOINT_PORT
+      FIREWALL_OUTBOUND_SUBNETS: 172.20.0.0/14,fd00::/112
+    labels:
+      traefik.http.routers.qbittorrent.rule: Host(`downloads.${DOMAIN}`) && $RESTRICTED
+      traefik.http.routers.qbittorrent.entryPoints: websecure
+      traefik.http.services.qbittorrent.loadbalancer.server.port: 8980
+      traefik.http.services.qbittorrent.loadbalancer.passhostheader: false
+      traefik.http.routers.qbittorrent.tls: true
+      traefik.http.routers.qbittorrent.tls.certResolver: letsencrypt
+      traefik.http.middlewares.qbittorrent-headers.headers.customrequestheaders.X-Frame-Options: SAMEORIGIN
+      traefik.http.middlewares.qbittorrent-headers.headers.customrequestheaders.Referer: ""
+      traefik.http.middlewares.qbittorrent-headers.headers.customrequestheaders.Origin: ""
+      traefik.http.routers.qbittorrent.middlewares: qbittorrent-headers,auth@file
+      traefik.http.routers.qbittorrent.service: qbittorrent
+      traefik.http.routers.qbittorrent.priority: 99
 

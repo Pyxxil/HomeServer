@@ -12,8 +12,8 @@ x-common-media: &media
       <<: *healthcheck
     labels:
       traefik.http.routers.radarr.rule:
-        Host(`request.${DOMAIN}`) && PathPrefix(`/movies`)
-      traefik.http.routers.radarr.entrypoints: websecure
+        Host(`request.${DOMAIN}`) && PathPrefix(`/movies`) && $RESTRICTED
+      traefik.http.routers.radarr.entryPoints: websecure
       traefik.http.services.radarr.loadbalancer.server.port: 7878
       traefik.http.routers.radarr.tls: true
       traefik.http.routers.radarr.tls.certResolver: letsencrypt
@@ -32,8 +32,8 @@ x-common-media: &media
       <<: *healthcheck
     labels:
       traefik.http.routers.sonarr.rule:
-        Host(`request.${DOMAIN}`) && PathPrefix(`/shows`)
-      traefik.http.routers.sonarr.entrypoints: websecure
+        Host(`request.${DOMAIN}`) && PathPrefix(`/shows`) && $RESTRICTED 
+      traefik.http.routers.sonarr.entryPoints: websecure
       traefik.http.services.sonarr.loadbalancer.server.port: 8989
       traefik.http.routers.sonarr.tls: true
       traefik.http.routers.sonarr.tls.certResolver: letsencrypt
@@ -52,9 +52,9 @@ x-common-media: &media
       <<: *healthcheck
     labels:
       traefik.http.routers.readarr.rule:
-        Host(`request.${DOMAIN}`) && PathPrefix(`/books`)
+        Host(`request.${DOMAIN}`) && PathPrefix(`/books`) && $RESTRICTED
       traefik.http.services.readarr.loadBalancer.server.port: 8787
-      traefik.http.routers.readarr.entrypoints: websecure
+      traefik.http.routers.readarr.entryPoints: websecure
       traefik.http.routers.readarr.tls: true
       traefik.http.routers.readarr.tls.certResolver: letsencrypt
       traefik.http.routers.readarr.middlewares: auth@file
@@ -71,7 +71,8 @@ x-common-media: &media
       YTDL_OPTIONS: '{ "writeinfojson": true, "updatetime": false, "prefer_free_formats": true, "concurrent_fragment_downloads": 3, "ignoreerrors": true, "check_formats": true, "postprocessors": [{ "key": "Exec", "exec_cmd": "chmod 0664", "when": "after_move" }, { "key": "FFmpegMetadata", "add_chapters": true }] }'
       DEFAULT_THEME: dark
     labels:
-      traefik.http.routers.youtube.entrypoints: websecure
+      traefik.http.routers.youtube.rule: Host(`youtube.${DOMAIN}`) && $RESTRICTED
+      traefik.http.routers.youtube.entryPoints: websecure
       traefik.http.services.youtube.loadBalancer.server.port: 8081
       traefik.http.routers.youtube.tls: true
       traefik.http.routers.youtube.tls.certResolver: letsencrypt
@@ -87,7 +88,8 @@ x-common-media: &media
       test: ["CMD-SHELL", "curl --fail localhost:9696"]
       <<: *healthcheck
     labels:
-      traefik.http.routers.prowlarr.entrypoints: websecure
+      traefik.http.routers.prowlarr.rule: Host(`indexers.${DOMAIN}`) && $RESTRICTED
+      traefik.http.routers.prowlarr.entryPoints: websecure
       traefik.http.services.prowlarr.loadbalancer.server.port: 9696
       traefik.http.routers.prowlarr.tls: true
       traefik.http.routers.prowlarr.tls.certResolver: letsencrypt
@@ -107,8 +109,7 @@ x-common-media: &media
       traefik.enable: false
 
   flaresolverr:
-    #image: ghcr.io/flaresolverr/flaresolverr
-    image: 21hsmw/flaresolverr:fixlooping
+    image: ghcr.io/flaresolverr/flaresolverr
     container_name: flaresolverr
     <<: *common
     environment:
@@ -124,15 +125,17 @@ x-common-media: &media
   qbittorrent:
     image: lscr.io/linuxserver/qbittorrent
     container_name: downloads
-    <<: *common
+    <<: *logging
+    restart: unless-stopped
     environment:
       <<: *env-vars
       WEBUI_PORT: 8980
       DOCKER_MODS: linuxserver/mods:universal-stdout-logs
       LOGS_TO_STDOUT: "/config/qBittorrent/logs/qbittorrent.log"
       TORRENTING_PORT: 58943
-    ports:
-      - 58943:58943
+    network_mode: "service:vpn"
+    depends_on:
+      - vpn
     deploy:
       resources:
         limits:
@@ -144,15 +147,21 @@ x-common-media: &media
       test: ["CMD-SHELL", "curl --fail localhost:8980"]
       <<: *healthcheck
     labels:
-      traefik.http.routers.qbittorrent.entrypoints: websecure
-      traefik.http.services.qbittorrent.loadbalancer.server.port: 8980
-      traefik.http.services.qbittorrent.loadbalancer.passhostheader: false
-      traefik.http.routers.qbittorrent.tls: true
-      traefik.http.routers.qbittorrent.tls.certResolver: letsencrypt
-      traefik.http.middlewares.qbittorrent-headers.headers.customrequestheaders.X-Frame-Options: SAMEORIGIN
-      traefik.http.middlewares.qbittorrent-headers.headers.customrequestheaders.Referer: ""
-      traefik.http.middlewares.qbittorrent-headers.headers.customrequestheaders.Origin: ""
-      traefik.http.routers.qbittorrent.middlewares: qbittorrent-headers,auth@file
+      traefik.enable: false
+
+  qbit_manage:
+    container_name: qbit_manage
+    image: ghcr.io/stuffanthings/qbit_manage:develop
+    <<: *common
+    volumes:
+      - config-qbittorrent-manage:/config:rw
+      - media:/media:rw
+      - config-qbittorrent:/qbittorrent/:ro
+    depends_on:
+      qbittorrent:
+        condition: service_healthy
+    labels:
+      traefik.enable: false
 
   jellyseerr:
     image: ghcr.io/fallenbagel/jellyseerr:develop
@@ -175,7 +184,7 @@ x-common-media: &media
         ]
       <<: *healthcheck
     labels:
-      traefik.http.routers.jellyseerr.entrypoints: websecure
+      traefik.http.routers.jellyseerr.entryPoints: websecure
       traefik.http.services.jellyseerr.loadbalancer.server.port: 5055
       traefik.http.routers.jellyseerr.tls: true
       traefik.http.routers.jellyseerr.tls.certResolver: letsencrypt
@@ -196,31 +205,21 @@ x-common-media: &media
       test:
         [ "CMD-SHELL", "curl -i --fail http://localhost:8096/health"]
       <<: *healthcheck
+      start_period: 1m
     volumes:
       - config-jellyfin:/config
       - config-jellyfin-cache:/cache
       - media:/media
-    group_add:
-      - "989" # getent group render | cut -d: -f3
-      - "986" # getent group video | cut -d: -f3
-      - video
     security_opt:
       - seccomp:unconfined
     devices:
-      - /dev/dri/renderD128:/dev/dri/renderD128
+      - /dev/dri:/dev/dri
       - /dev/kfd:/dev/kfd
     labels:
       traefik.http.services.watch.loadBalancer.server.port: 8096
-      traefik.http.routers.watch.entrypoints: websecure
+      traefik.http.routers.watch.entryPoints: websecure
       traefik.http.routers.watch.tls: true
       traefik.http.routers.watch.tls.certResolver: letsencrypt
-      traefik.http.middlewares.csp.headers.customResponseHeaders.Content-Security-Policy-Report-Only: >-
-        default-src https: data: blob:;
-        style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://site-assets.fontawesome.com https://fonts.googleapis.com https://ctalvio.github.io;
-        script-src 'self' 'unsafe-inline' blob:;
-        worker-src 'self' blob:; connect-src 'self' https:;
-        object-src 'none'; frame-ancestors 'self'
-      traefik.http.routers.watch.middlewares: csp
 
   podgrab:
     image: akhilrex/podgrab
@@ -244,8 +243,9 @@ x-common-media: &media
         ]
       <<: *healthcheck
     labels:
+      traefik.http.routers.podgrab.rule: Host(`podcasts.${DOMAIN}`) && $RESTRICTED
       traefik.http.services.podgrab.loadBalancer.server.port: 8080
-      traefik.http.routers.podgrab.entrypoints: websecure
+      traefik.http.routers.podgrab.entryPoints: websecure
       traefik.http.routers.podgrab.tls: true
       traefik.http.routers.podgrab.tls.certResolver: letsencrypt
       traefik.http.routers.podgrab.middlewares: auth@file
@@ -260,8 +260,9 @@ x-common-media: &media
       test: ["CMD-SHELL", "curl --fail localhost:8080"]
       <<: *healthcheck
     labels:
+      traefik.http.routers.calibre.rule: Host(`calibre.${DOMAIN}`) && $RESTRICTED
       traefik.http.services.calibre.loadBalancer.server.port: 8080
-      traefik.http.routers.calibre.entrypoints: websecure
+      traefik.http.routers.calibre.entryPoints: websecure
       traefik.http.routers.calibre.tls: true
       traefik.http.routers.calibre.tls.certResolver: letsencrypt
       traefik.http.routers.calibre.middlewares: auth@file
@@ -282,7 +283,7 @@ x-common-media: &media
     restart: unless-stopped
     <<: *logging
     networks:
-      - internal
+      - backend
     command: python3 main.py --run
     volumes:
       - config-title:/config
@@ -297,6 +298,8 @@ x-common-media: &media
       TCM_MISSING: /config/missing.yml
       TCM_RUNTIME: 23:00
       TCM_FREQUENCY: 30m
+    depends_on:
+      - watch
     labels:
       traefik.enable: false
 
@@ -315,10 +318,11 @@ x-common-media: &media
       REDIS_PORT: 6379
       MACHINE_LEARNING_WORKERS: 1
       MACHINE_LEARNING_WORKER_TIMEOUT: 120
+      DOCKER_MODS: linuxserver/mods:jellyfin-amd
     devices:
-      - /dev/dri:/dev/dri
+      - /dev/dri/renderD128:/dev/dri/renderD128
     healthcheck:
-      test: ["CMD-SHELL", "curl --fail localhost:8080/api/server-info/ping | grep 'pong' || exit 1"]
+      test: ["CMD-SHELL", "curl --fail localhost:8080/api/server/ping | grep 'pong' || exit 1"]
       <<: *healthcheck
     depends_on:
       - pg-vectors
@@ -327,8 +331,24 @@ x-common-media: &media
       - config-immich:/config
       - media-photos:/photos
     labels:
+      traefik.http.routers.immich.rule: Host(`photos.${DOMAIN}`) && $RESTRICTED
       traefik.http.services.immich.loadBalancer.server.port: 8080
-      traefik.http.routers.immich.entrypoints: websecure
+      traefik.http.routers.immich.entryPoints: websecure
       traefik.http.routers.immich.tls: true
       traefik.http.routers.immich.tls.certResolver: letsencrypt
+
+  checkrr:
+    container_name: media
+    image: aetaric/checkrr:latest
+    <<: *common
+    volumes:
+      - ${CONFIG_DIR}/checkrr/checkrr.yaml:/etc/checkrr.yaml
+      - ${CONFIG_DIR}/checkrr/checkrr.db:/etc/checkrr.db
+      - media:/media
+    labels:
+      traefik.http.routers.media.rule: Host(`media.${DOMAIN}`) && $RESTRICTED
+      traefik.http.services.media.loadBalancer.server.port: 8585
+      traefik.http.routers.media.entryPoints: websecure
+      traefik.http.routers.media.tls: true
+      traefik.http.routers.media.tls.certResolver: letsencrypt
 

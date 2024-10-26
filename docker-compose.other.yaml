@@ -40,8 +40,9 @@ x-common-other: &other
       test: curl -fSs localhost/api/healthcheck || exit 1
       <<: *healthcheck
     labels:
+      traefik.http.routers.speedtest.rule: Host(`speed.${DOMAIN}`) && $RESTRICTED
       traefik.http.services.speedtest.loadbalancer.server.port: 80
-      traefik.http.routers.speedtest.entrypoints: websecure
+      traefik.http.routers.speedtest.entryPoints: websecure
       traefik.http.routers.speedtest.tls: true
       traefik.http.routers.speedtest.tls.certResolver: letsencrypt
 
