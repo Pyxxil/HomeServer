@@ -26,6 +26,7 @@ x-common-cloud: &cloud
       - config-vikunja:/app/vikunja/files
     depends_on:
       - postgres
+    read_only: true
     labels:
       traefik.http.routers.todo.rule: Host(`todo.${DOMAIN}`) && $RESTRICTED
       traefik.http.routers.todo.entryPoints: websecure
@@ -76,6 +77,7 @@ x-common-cloud: &cloud
       - config-vaultwarden:/data
     depends_on:
       - postgres
+    read_only: true
     labels:
       traefik.http.routers.vaultwarden.rule: Host(`vault.${DOMAIN}`) && $RESTRICTED
       traefik.http.services.vaultwarden.loadbalancer.server.port: 8800
@@ -83,24 +85,26 @@ x-common-cloud: &cloud
       traefik.http.routers.vaultwarden.tls: true
       traefik.http.routers.vaultwarden.tls.certResolver: letsencrypt
 
-  freshrss:
-    image: lscr.io/linuxserver/freshrss
+  rss:
+    image: freshrss/freshrss
     container_name: rss
-    <<: *common
     volumes:
-      - config-freshrss:/config
-    healthcheck:
-      test:
-        [
-          "CMD-SHELL",
-          "curl -fsS 'http://localhost/i/' | grep -q 'jsonVars' || exit 1",
-        ]
-      <<: *healthcheck
+      - config-freshrss:/var/www/FreshRSS/data
+      - config-freshrss-extensions:/var/www/FreshRSS/extensions
+    <<: *logging
+    network_mode: "service:vpn"
+    depends_on:
+      - vpn
+    environment:
+      <<: *env-vars
+      DB_HOST: postgres:5432
+      DB_BASE: freshrss
+      DB_PASSWORD: ${DATABASE_PASSWORD}
+      DB_USER: ${DATABASE_USERNAME}
+      TRUSTED_PROXY: "172.0.0.0/8"
+      CRON_MIN: '13,43'
     labels:
-      traefik.http.routers.freshrss.rule: Host(`rss.${DOMAIN}`) && $RESTRICTED
-      traefik.http.routers.freshrss.entryPoints: websecure
-      traefik.http.routers.freshrss.tls: true
-      traefik.http.routers.freshrss.tls.certResolver: letsencrypt
+      traefik.enable: false
 
   wiki:
     image: outlinewiki/outline
@@ -150,6 +154,8 @@ x-common-cloud: &cloud
     volumes:
       - config-home-assistant:/config
       - /etc/localtime:/etc/localtime:ro
+    security_opt:
+      - no-new-privileges:true
     labels:
       traefik.enable: false
 
@@ -199,7 +205,7 @@ x-common-cloud: &cloud
       traefik.http.routers.frigate.middlewares: auth@file
 
   grimoire:
-    image: goniszewski/grimoire:latest
+    image: goniszewski/grimoire
     container_name: bookmarks
     <<: *common
     environment:
@@ -215,6 +221,7 @@ x-common-cloud: &cloud
       interval: 30s
       timeout: 10s
       retries: 3
+    read_only: true
     labels:
       traefik.http.routers.bookmarks.rule: Host(`bookmarks.${DOMAIN}`) && $RESTRICTED
       traefik.http.services.bookmarks.loadbalancer.server.port: 5173
@@ -222,4 +229,77 @@ x-common-cloud: &cloud
       traefik.http.routers.bookmarks.tls: true
       traefik.http.routers.bookmarks.tls.certResolver: letsencrypt
       traefik.http.routers.bookmarks.middlewares: auth@file
+
+  git:
+    image: gitea/gitea:latest-rootless
+    container_name: git
+    <<: *common
+    user: ${PUID}:${PGID}
+    environment:
+      <<: *env-vars
+      GITEA__database__DB_TYPE: postgres
+      GITEA__database__HOST: postgres:5432
+      GITEA__database__NAME: gitea
+      GITEA__database__USER: ${DATABASE_USERNAME}
+      GITEA__database__PASSWD: ${DATABASE_PASSWORD}
+      GITEA__service_DISABLE_REGISTRATION: true
+    healthcheck:
+      # checks availability of Gitea's front-end with curl
+      test: ["CMD", "curl", "-f", "localhost:3000"]
+      <<: *healthcheck
+    depends_on:
+      - postgres
+      - redis
+      - minio
+    volumes:
+      - config-git-data:/var/lib/gitea
+      - config-git:/etc/gitea
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro
+    labels:
+      traefik.http.routers.git.rule: Host(`git.${DOMAIN}`) && $RESTRICTED
+      traefik.http.services.git.loadbalancer.server.port: 3000
+      traefik.http.routers.git.entryPoints: websecure
+      traefik.http.routers.git.tls: true
+      traefik.http.routers.git.tls.certResolver: letsencrypt
+
+  runner:
+    image: gitea/act_runner
+    container_name: runner
+    <<: *common
+    depends_on:
+      git:
+        condition: service_healthy 
+        restart: true
+    environment:
+      <<: *env-vars
+      CONFIG_FILE: /config.yaml
+      GITEA_INSTANCE_URL: https://git.${DOMAIN}/
+      GITEA_RUNNER_REGISTRATION_TOKEN: ${REGISTRATION_TOKEN}
+      GITEA_RUNNER_NAME: git-default
+    ports:
+      - ${IP}:8765:8765
+    deploy:
+      resources:
+        limits:
+          memory: 16G
+          cpus: 8
+    volumes:
+      - ${CONFIG_DIR}/git/runner/config.yaml:/config.yaml
+      - config-git-runner-data:/data
+      - /var/run/docker.sock:/var/run/docker.sock
+    labels:
+      traefik.enable: false
+
+      #  renovate:
+      #    image: renovate/renovate
+      #    container_name: renovate
+      #    <<: *common
+      #    environment:
+      #      <<: *env-vars
+      #      LOG_LEVEL: debug
+      #    volumes:
+      #      - ${CONFIG_DIR}/git/renovate/config.js:/usr/src/app/config.js
+      #    labels:
+      #      traefik.enable: false
 

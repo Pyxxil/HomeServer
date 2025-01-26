@@ -1,7 +1,7 @@
 
 x-common-databases: &databases
   postgres:
-    image: postgres:16
+    image: postgres:17
     container_name: postgres
     <<: *common
     networks:
@@ -17,19 +17,19 @@ x-common-databases: &databases
       <<: *env-vars
       POSTGRES_USER: ${DATABASE_USERNAME}
       POSTGRES_PASSWORD: ${DATABASE_PASSWORD}
-      POSTGRES_MULTIPLE_DATABASES: vikunja,vaultwarden,outline,auth,letsblockit,speedtest
-      PGDATA: /var/lib/postgresql/16/data
+      POSTGRES_MULTIPLE_DATABASES: vikunja,vaultwarden,outline,auth,letsblockit,speedtest,gitea,freshrss
+      PGDATA: /var/lib/postgresql/17/data
     labels:
       traefik.enable: false
 
   pg-vectors:
-    image: tensorchord/pgvecto-rs:pg15-v0.2.0
+    image: tensorchord/pgvecto-rs:pg15-v0.3.0
     container_name: pg-vectors
     <<: *common
     networks:
       - backend
     volumes:
-      - config-pg-vectors:/var/lib/postgresql/data
+      - config-pg-vectors:/var/lib/postgresql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U immich -d immich"]
       <<: *healthcheck
@@ -39,6 +39,7 @@ x-common-databases: &databases
       POSTGRES_USER: immich
       POSTGRES_PASSWORD: ${DATABASE_PASSWORD}
       POSTGRES_DB: immich
+      PGDATA: /var/lib/postgresql/15/data
     labels:
       traefik.enable: false
 
@@ -69,6 +70,8 @@ x-common-databases: &databases
       <<: *env-vars
       MINIO_BROWSER_REDIRECT_URL: "https://minio.${DOMAIN}"
       MINIO_PROMETHEUS_AUTH_TYPE: "public"
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
     healthcheck:
       test: timeout 5s bash -c ':> /dev/tcp/127.0.0.1/9000' || exit 1
       <<: *healthcheck

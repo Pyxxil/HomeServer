@@ -31,6 +31,8 @@ x-common-common: &common
   <<: [*networks, *logging]
   restart: unless-stopped
   environment: *env-vars
+  security_opt:
+    - no-new-privileges:true
 
 networks:
   frontend:
@@ -70,11 +72,27 @@ volumes:
   config-freshrss:
     driver_opts:
       <<: *driver-opts
-      device: ${CONFIG_DIR}/freshrss
+      device: ${CONFIG_DIR}/freshrss/data
+  config-freshrss-extensions:
+    driver_opts:
+      <<: *driver-opts
+      device: ${CONFIG_DIR}/freshrss/extensions
   config-frigate:
     driver_opts:
       <<: *driver-opts
       device: ${CONFIG_DIR}/frigate
+  config-git:
+    driver_opts:
+      <<: *driver-opts
+      device: ${CONFIG_DIR}/git/config
+  config-git-data:
+    driver_opts:
+      <<: *driver-opts
+      device: ${CONFIG_DIR}/git/data
+  config-git-runner-data:
+    driver_opts:
+      <<: *driver-opts
+      device: ${CONFIG_DIR}/git/runner/data
   config-grafana:
     driver_opts:
       <<: *driver-opts
@@ -115,6 +133,14 @@ volumes:
     driver_opts:
       <<: *driver-opts
       device: ${CONFIG_DIR}/ldap/db
+  config-loki:
+    driver_opts:
+      <<: *driver-opts
+      device: ${CONFIG_DIR}/loki/config
+  config-loki-data:
+    driver_opts:
+      <<: *driver-opts
+      device: ${CONFIG_DIR}/loki/data
   config-matter:
     driver_opts:
       <<: *driver-opts
@@ -139,10 +165,6 @@ volumes:
     driver_opts:
       <<: *driver-opts
       device: ${CONFIG_DIR}/pg-vectors
-  config-piper:
-    driver_opts:
-      <<: *driver-opts
-      device: ${CONFIG_DIR}/piper
   config-podgrab:
     driver_opts:
       <<: *driver-opts
@@ -155,6 +177,10 @@ volumes:
     driver_opts:
       <<: *driver-opts
       device: ${CONFIG_DIR}/prometheus
+  config-promtail:
+    driver_opts:
+      <<: *driver-opts
+      device: ${CONFIG_DIR}/promtail
   config-prowlarr:
     driver_opts:
       <<: *driver-opts

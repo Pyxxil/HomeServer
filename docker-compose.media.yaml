@@ -143,6 +143,8 @@ x-common-media: &media
     volumes:
       - config-qbittorrent:/config
       - media:/media
+    security_opt:
+      - no-new-privileges:true
     healthcheck:
       test: ["CMD-SHELL", "curl --fail localhost:8980"]
       <<: *healthcheck
@@ -277,32 +279,6 @@ x-common-media: &media
     labels:
       traefik.enable: false
 
-  title-card-maker:
-    image: collinheist/titlecardmaker:develop
-    container_name: title-card-maker
-    restart: unless-stopped
-    <<: *logging
-    networks:
-      - backend
-    command: python3 main.py --run
-    volumes:
-      - config-title:/config
-      - config-title-logs:/maker/logs
-      - media:/media
-    deploy:
-      resources:
-        limits:
-          cpus: '6'
-    environment:
-      <<: *env-vars
-      TCM_MISSING: /config/missing.yml
-      TCM_RUNTIME: 23:00
-      TCM_FREQUENCY: 30m
-    depends_on:
-      - watch
-    labels:
-      traefik.enable: false
-
   immich:
     image: ghcr.io/imagegenius/immich
     container_name: photos
@@ -316,6 +292,7 @@ x-common-media: &media
       DB_PORT: 5432
       REDIS_HOSTNAME: redis
       REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
       MACHINE_LEARNING_WORKERS: 1
       MACHINE_LEARNING_WORKER_TIMEOUT: 120
       DOCKER_MODS: linuxserver/mods:jellyfin-amd
@@ -336,19 +313,4 @@ x-common-media: &media
       traefik.http.routers.immich.entryPoints: websecure
       traefik.http.routers.immich.tls: true
       traefik.http.routers.immich.tls.certResolver: letsencrypt
-
-  checkrr:
-    container_name: media
-    image: aetaric/checkrr:latest
-    <<: *common
-    volumes:
-      - ${CONFIG_DIR}/checkrr/checkrr.yaml:/etc/checkrr.yaml
-      - ${CONFIG_DIR}/checkrr/checkrr.db:/etc/checkrr.db
-      - media:/media
-    labels:
-      traefik.http.routers.media.rule: Host(`media.${DOMAIN}`) && $RESTRICTED
-      traefik.http.services.media.loadBalancer.server.port: 8585
-      traefik.http.routers.media.entryPoints: websecure
-      traefik.http.routers.media.tls: true
-      traefik.http.routers.media.tls.certResolver: letsencrypt
 

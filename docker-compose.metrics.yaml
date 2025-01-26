@@ -45,17 +45,42 @@ x-common-metrics: &metrics
       traefik.http.routers.grafana.tls: true
       traefik.http.routers.grafana.tls.certResolver: letsencrypt
 
-  node_exporter:
-    image: quay.io/prometheus/node-exporter
-    container_name: host
-    command: --path.rootfs=/host
+  loki:
+    container_name: loki
+    image: grafana/loki:3.0.0
     <<: *common
-    pid: host
+    command: -config.file=/etc/loki/loki.yaml
     volumes:
-      - /:/host:ro,rslave
+      - config-loki:/etc/loki
+      - config-loki-data:/loki
+    depends_on:
+      - redis
+      - minio
     healthcheck:
-      test: ["CMD-SHELL", "/bin/netstat -pant | /bin/grep ':9100'"]
+      test:
+        [
+          "CMD",
+          "wget",
+          "--no-verbose",
+          "--tries=1",
+          "--spider",
+          "http://localhost:3100/ready",
+        ]
       <<: *healthcheck
+    user: ${PUID}:${PGID}
     labels:
       traefik.enable: false
 
+  promtail:
+    container_name: logs
+    image: grafana/promtail
+    <<: *common
+    command: -config.file=/etc/promtail/promtail.yaml
+    volumes:
+      - config-promtail:/etc/promtail
+      - /var/log/traefik:/var/log/traefik:ro
+      - /var/cache/promtail:/tmp/positions
+    depends_on:
+      - loki
+    labels:
+      traefik.enable: false

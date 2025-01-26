@@ -28,10 +28,14 @@ x-common-other: &other
       CACHE_DRIVER: redis
       REDIS_HOST: redis
       REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
       SPEEDTEST_SCHEDULE: "0 */3 * * *"
       PRUNE_RESULTS_OLDER_THAN: 14
       APP_TIMEZONE: ${TIMEZONE}
       DISPLAY_TIMEZONE: ${TIMEZONE}
+      APP_URL: https://speed.${DOMAIN}
+      ASSET_URL: https://speed.${DOMAIN}
+      TRUSTED_PROXIES: ${TRUSTED_IPS}
     volumes:
       - config-speedtest:/config
     depends_on:
