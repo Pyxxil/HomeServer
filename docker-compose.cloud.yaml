@@ -1,41 +1,51 @@
 x-common-cloud: &cloud
-  todo:
-    image: vikunja/vikunja
-    container_name: todo
-    <<: *common
-    environment:
-      <<: *env-vars
-      VIKUNJA_DATABASE_HOST: postgres
-      VIKUNJA_DATABASE_PASSWORD: ${DATABASE_PASSWORD}
-      VIKUNJA_DATABASE_TYPE: postgres
-      VIKUNJA_DATABASE_USER: ${DATABASE_USERNAME}
-      VIKUNJA_DATABASE_DATABASE: ${TODO_DATABASE}
-      VIKUNJA_SERVICE_JWTSECRET: ${JWT_SECRET}
-      VIKUNJA_SERVICE_TIMEZONE: ${TIMEZONE}
-      VIKUNJA_SERVICE_PUBLICURL: https://todo.${DOMAIN}
-      VIKUNJA_LOG_LEVEL: DEBUG
-      VIKUNJA_METRICS_ENABLED: true
-      VIKUNJA_LOG_EVENTS: stdout
-      VIKUNJA_LOG_EVENTSLEVEL: info
-      VIKUNJA_LOG_MAIL: stdout
-      VIKUNJA_LOG_MAILLEVEL: info
-      VIKUNJA_CORS_ENABLE: true
-      VIKUNJA_CORS_ORIGINS: "https://todo.${DOMAIN}"
-    volumes:
-      - config-vikunja-conf:/etc/vikunja
-      - config-vikunja:/app/vikunja/files
-    depends_on:
-      - postgres
-    read_only: true
-    labels:
-      traefik.http.routers.todo.rule: Host(`todo.${DOMAIN}`) && $RESTRICTED
-      traefik.http.routers.todo.entryPoints: websecure
-      traefik.http.routers.todo.tls: true
-      traefik.http.routers.todo.tls.certResolver: letsencrypt
+  #todo:
+  #  image: vikunja/vikunja
+  #  container_name: todo
+  #  <<: *common
+  #  environment:
+  #    <<: *env-vars
+  #    VIKUNJA_DATABASE_HOST: postgres
+  #    VIKUNJA_DATABASE_PASSWORD: ${DATABASE_PASSWORD}
+  #    VIKUNJA_DATABASE_TYPE: postgres
+  #    VIKUNJA_DATABASE_USER: ${DATABASE_USERNAME}
+  #    VIKUNJA_DATABASE_DATABASE: ${TODO_DATABASE}
+  #    VIKUNJA_SERVICE_JWTSECRET: ${JWT_SECRET}
+  #    VIKUNJA_SERVICE_TIMEZONE: ${TIMEZONE}
+  #    VIKUNJA_SERVICE_PUBLICURL: https://todo.${DOMAIN}
+  #    VIKUNJA_METRICS_ENABLED: true
+  #    VIKUNJA_LOG_LEVEL: WARNING
+  #    VIKUNJA_LOG_STANDARD: stdout
+  #    VIKUNJA_LOG_EVENTS: stdout
+  #    VIKUNJA_LOG_EVENTSLEVEL: ERROR
+  #    VIKUNJA_LOG_DATABASE: true
+  #    VIKUNJA_LOG_DATABASELEVEL: WARNING
+  #    VIKUNJA_LOG_MAIL: stdout
+  #    VIKUNJA_LOG_MAILLEVEL: WARNING
+  #    VIKUNJA_CORS_ENABLE: true
+  #    VIKUNJA_CORS_ORIGINS: "https://todo.${DOMAIN}"
+  #    VIKUNJA_KEYVALUE_TYPE: redis
+  #    VIKUNJA_REDIS_ENABLED: true
+  #    VIKUNJA_REDIS_HOST: redis:6379
+  #    VIKUNJA_REDIS_PASSWORD: ${REDIS_PASSWORD}
+  #    VIKUNJA_REDIS_DB: 0
+  #    VIKUNJA_AUTH_LOCAL_ENABLED: false
+  #    VIKUNJA_AUTH_OPENID_ENABLED: true
+  #    VIKUNJA_AUTH_OPENID_REDIRECTURL: "https://todo.${DOMAIN}/auth/openid"
+  #  volumes:
+  #    - config-vikunja-conf:/etc/vikunja
+  #    - config-vikunja:/app/vikunja/files
+  #  depends_on:
+  #    - postgres
+  #  labels:
+  #    traefik.http.routers.todo.rule: Host(`todo.${DOMAIN}`) && $RESTRICTED
+  #    traefik.http.routers.todo.entryPoints: websecure
+  #    traefik.http.routers.todo.tls: true
+  #    traefik.http.routers.todo.tls.certResolver: letsencrypt
 
   sync:
     container_name: sync
-    image: lscr.io/linuxserver/syncthing
+    image: ghcr.io/linuxserver/syncthing
     hostname: sync.${DOMAIN}
     <<: *common
     volumes:
@@ -45,6 +55,9 @@ x-common-cloud: &cloud
       - ${IP}:22000:22000/tcp
       - ${IP}:22000:22000/udp
       - ${IP}:21027:21027/udp
+      - ${IPV6}:22000:22000/tcp
+      - ${IPV6}:22000:22000/udp
+      - ${IPV6}:21027:21027/udp
     healthcheck:
       test: nc -z 127.0.0.1 8384 || exit 1
       <<: *healthcheck
@@ -77,7 +90,6 @@ x-common-cloud: &cloud
       - config-vaultwarden:/data
     depends_on:
       - postgres
-    read_only: true
     labels:
       traefik.http.routers.vaultwarden.rule: Host(`vault.${DOMAIN}`) && $RESTRICTED
       traefik.http.services.vaultwarden.loadbalancer.server.port: 8800
@@ -88,6 +100,7 @@ x-common-cloud: &cloud
   rss:
     image: freshrss/freshrss
     container_name: rss
+    restart: unless-stopped
     volumes:
       - config-freshrss:/var/www/FreshRSS/data
       - config-freshrss-extensions:/var/www/FreshRSS/extensions
@@ -95,6 +108,8 @@ x-common-cloud: &cloud
     network_mode: "service:vpn"
     depends_on:
       - vpn
+    security_opt:
+      - no-new-privileges=true
     environment:
       <<: *env-vars
       DB_HOST: postgres:5432
@@ -113,7 +128,7 @@ x-common-cloud: &cloud
     <<: *common
     depends_on:
       - postgres
-      - redis
+      - valkey
       - minio
     healthcheck:
       test: ["CMD-SHELL", "timeout 5s bash -c ':> /dev/tcp/127.0.0.1/3000' || exit 1"]
@@ -126,7 +141,7 @@ x-common-cloud: &cloud
       traefik.http.routers.outline.tls.certResolver: letsencrypt
 
   home:
-    image: lscr.io/linuxserver/homeassistant
+    image: ghcr.io/linuxserver/homeassistant
     container_name: home
     restart: unless-stopped
     dns:
@@ -155,7 +170,7 @@ x-common-cloud: &cloud
       - config-home-assistant:/config
       - /etc/localtime:/etc/localtime:ro
     security_opt:
-      - no-new-privileges:true
+      - no-new-privileges=true
     labels:
       traefik.enable: false
 
@@ -196,6 +211,8 @@ x-common-cloud: &cloud
     ports:
       - ${IP}:5000:5000 # unathenticated access
       - ${IP}:8554:8554 # RTSP feeds
+      - ${IPV6}:5000:5000 # unathenticated access
+      - ${IPV6}:8554:8554 # RTSP feeds
     labels:
       traefik.http.routers.frigate.rule: Host(`frigate.${DOMAIN}`) && $RESTRICTED
       traefik.http.services.frigate.loadbalancer.server.port: 8971
@@ -221,7 +238,6 @@ x-common-cloud: &cloud
       interval: 30s
       timeout: 10s
       retries: 3
-    read_only: true
     labels:
       traefik.http.routers.bookmarks.rule: Host(`bookmarks.${DOMAIN}`) && $RESTRICTED
       traefik.http.services.bookmarks.loadbalancer.server.port: 5173
@@ -237,20 +253,38 @@ x-common-cloud: &cloud
     user: ${PUID}:${PGID}
     environment:
       <<: *env-vars
+      GITEA__service__DISABLE_REGISTRATION: true
+      GITEA__service__PROVIDER_CONFIG: redis://${REDIS_PASSWORD}@valkey:6379
+      GITEA__service__PROVIDER: redis
+      GITEA__queue__TYPE: redis
+      GITEA__queue__CONN_STR: redis://${REDIS_PASSWORD}@valkey:6379
+      GITEA__cache__ENABLED: true
+      GITEA__cache__ADAPTER: redis
+      GITEA__cache__HOST: redis://${REDIS_PASSWORD}@valkey:6379
+      GITEA__database__PATH: /var/lib/gitea/data/gitea.db
       GITEA__database__DB_TYPE: postgres
       GITEA__database__HOST: postgres:5432
       GITEA__database__NAME: gitea
       GITEA__database__USER: ${DATABASE_USERNAME}
       GITEA__database__PASSWD: ${DATABASE_PASSWORD}
-      GITEA__service_DISABLE_REGISTRATION: true
+      GITEA__database__SCHEMA: ""
+      GITEA__database__SSL_MODE: disable
+      GITEA__database__LOG_SQL: false
+      GITEA__storage__STORAGE_TYPE: minio
+      GITEA__storage__MINIO_ENDPOINT: minio:9000
+      GITEA__storage__MINIO_ACCESS_KEY_ID: ${GIT_MINIO_ACCESS_KEY}
+      GITEA__storage__MINIO_SECRET_ACCESS_KEY: ${GIT_MINIO_SECRET_KEY}
+      GITEA__storage__MINIO_LOCATION: local
+      GITEA__storage__MINIO_USE_SSL: false
     healthcheck:
       # checks availability of Gitea's front-end with curl
       test: ["CMD", "curl", "-f", "localhost:3000"]
       <<: *healthcheck
     depends_on:
       - postgres
-      - redis
+      - valkey
       - minio
+      - auth
     volumes:
       - config-git-data:/var/lib/gitea
       - config-git:/etc/gitea
@@ -291,15 +325,68 @@ x-common-cloud: &cloud
     labels:
       traefik.enable: false
 
-      #  renovate:
-      #    image: renovate/renovate
-      #    container_name: renovate
-      #    <<: *common
-      #    environment:
-      #      <<: *env-vars
-      #      LOG_LEVEL: debug
-      #    volumes:
-      #      - ${CONFIG_DIR}/git/renovate/config.js:/usr/src/app/config.js
-      #    labels:
-      #      traefik.enable: false
+  renovate:
+    image: renovate/renovate
+    container_name: renovate
+    <<: *common
+    entrypoint: bash
+    stdin_open: true
+    tty: true
+    environment:
+      <<: *env-vars
+      LOG_LEVEL: debug
+      GITHUB_COM_TOKEN: ${GITHUB_TOKEN}
+    volumes:
+      - ${CONFIG_DIR}/git/renovate/config.js:/usr/src/app/config.js
+    labels:
+      traefik.enable: false
+      ofelia.enabled: true
+      ofelia.job-exec.renovate.schedule: "@every 12h"
+      ofelia.job-exec.renovate.command: "/usr/local/sbin/renovate-entrypoint.sh renovate"
+
+  cron:
+    image: mcuadros/ofelia
+    container_name: cron
+    <<: *common
+    command: daemon --docker
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    labels:
+      traefik.enable: false
+
+  youtrack:
+    container_name: youtrack
+    image: jetbrains/youtrack:2025.1.71685
+    <<: *common
+    volumes:
+      - config-youtrack:/opt/youtrack/conf
+      - config-youtrack-data:/opt/youtrack/data
+      - config-youtrack-logs:/opt/youtrack/logs
+    labels:
+      traefik.http.routers.youtrack.rule: Host(`youtrack.${DOMAIN}`) && $RESTRICTED
+      traefik.http.services.youtrack.loadbalancer.server.port: 8080
+      traefik.http.routers.youtrack.entryPoints: websecure
+      traefik.http.routers.youtrack.tls: true
+      traefik.http.routers.youtrack.tls.certResolver: letsencrypt
+
+  immich-public-proxy:
+    image: alangrainger/immich-public-proxy:latest
+    container_name: photo-proxy
+    <<: *common
+    environment:
+      <<: *env-vars
+      #IMMICH_URL: https://photos.${DOMAIN}
+      IMMICH_URL: http://photos:8080
+    depends_on:
+      - immich
+    healthcheck:
+      test: wget -q --spider http://localhost:3000/share/healthcheck || exit 1
+      start_period: 10s
+      timeout: 5s
+    labels:
+      traefik.http.routers.photo-proxy.rule: Host(`photos.${DOMAIN}`) && PathPrefix(`/share`)
+      traefik.http.services.photo-proxy.loadbalancer.server.port: 3000
+      traefik.http.routers.photo-proxy.entryPoints: websecure
+      traefik.http.routers.photo-proxy.tls: true
+      traefik.http.routers.photo-proxy.tls.certResolver: letsencrypt
 

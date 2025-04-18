@@ -12,7 +12,7 @@ x-common-other: &other
 
   speedtest-tracker:
     container_name: speed
-    image: lscr.io/linuxserver/speedtest-tracker:latest
+    image: ghcr.io/linuxserver/speedtest-tracker:latest
     <<: *common
     environment:
       <<: *env-vars
@@ -26,7 +26,7 @@ x-common-other: &other
       APP_KEY: ${SPEEDTEST_APP_KEY}
       PUBLIC_DASHBOARD: true
       CACHE_DRIVER: redis
-      REDIS_HOST: redis
+      REDIS_HOST: valkey
       REDIS_PORT: 6379
       REDIS_PASSWORD: ${REDIS_PASSWORD}
       SPEEDTEST_SCHEDULE: "0 */3 * * *"
@@ -40,6 +40,7 @@ x-common-other: &other
       - config-speedtest:/config
     depends_on:
       - postgres
+      - valkey
     healthcheck:
       test: curl -fSs localhost/api/healthcheck || exit 1
       <<: *healthcheck
@@ -52,13 +53,13 @@ x-common-other: &other
 
   adguardhome-sync:
     container_name: adguardhome-sync
-    image: lscr.io/linuxserver/adguardhome-sync:latest
+    image: 11notes/adguard-sync
+    read_only: true
     <<: *common
     environment:
       <<: *env-vars
-      CONFIGFILE: /config/config.yaml
     volumes:
-      - config-adguardhome-sync:/config
+      - config-adguardhome-sync:/adguard-sync/etc
     labels:
       traefik.enable: false
 

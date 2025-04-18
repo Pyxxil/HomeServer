@@ -38,6 +38,8 @@ x-common-metrics: &metrics
     healthcheck:
       test: ["CMD-SHELL", "curl http://localhost:3000/healthz | grep -i 'ok' || exit 1"]
       <<: *healthcheck
+    depends_on:
+      - valkey
     labels:
       traefik.http.routers.grafana.rule: Host(`metrics.${DOMAIN}`) && $RESTRICTED
       traefik.http.services.grafana.loadBalancer.server.port: 3000
@@ -54,7 +56,6 @@ x-common-metrics: &metrics
       - config-loki:/etc/loki
       - config-loki-data:/loki
     depends_on:
-      - redis
       - minio
     healthcheck:
       test:
@@ -84,3 +85,73 @@ x-common-metrics: &metrics
       - loki
     labels:
       traefik.enable: false
+
+  influxdb:
+    image: influxdb
+    container_name: influxdb
+    <<: *common
+    volumes:
+      - config-influxdb:/var/lib/influxdb2
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8086/health"]
+      <<: *healthcheck
+    labels:
+      traefik.http.routers.influxdb.rule: Host(`influxdb.${DOMAIN}`) && $RESTRICTED
+      traefik.http.routers.influxdb.entryPoints: websecure
+      traefik.http.routers.influxdb.tls: true
+      traefik.http.routers.influxdb.tls.certResolver: letsencrypt
+
+  scrutiny:
+    image: ghcr.io/analogj/scrutiny:master-web
+    container_name: scrutiny
+    <<: *common
+    volumes:
+      - config-scrutiny:/opt/scrutiny/config
+    environment:
+      <<: *env-vars
+      SCRUTINY_WEB_INFLUXDB_HOST: 'influxdb'
+    depends_on:
+      influxdb:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/api/health"]
+      <<: *healthcheck
+    labels:
+      traefik.http.routers.scrutiny-web.rule: Host(`smart.${DOMAIN}`) && $RESTRICTED
+      traefik.http.routers.scrutiny-web.entryPoints: websecure
+      traefik.http.routers.scrutiny-web.tls: true
+      traefik.http.routers.scrutiny-web.tls.certResolver: letsencrypt
+
+  scrutiny-collector:
+    image: ghcr.io/analogj/scrutiny:master-collector
+    <<: *common
+    networks:
+      - backend
+    container_name: scrutiny-collector
+    cap_add:
+      - SYS_RAWIO
+    volumes:
+      - /run/udev:/run/udev:ro
+    environment:
+      <<: *env-vars
+      COLLECTOR_API_ENDPOINT: 'http://scrutiny:8080'
+      COLLECTOR_HOST_ID: 'scrutiny-collector-andromeda'
+      COLLECTOR_RUN_STARTUP: true
+      COLLECTOR_LOG_LEVEL: WARN
+    depends_on:
+      scrutiny:
+        condition: service_healthy
+    devices:
+      - /dev/sda
+      - /dev/sdb
+      - /dev/sdc
+      - /dev/sdd
+      - /dev/sde
+      - /dev/sdf
+      - /dev/sdg
+      - /dev/sdh
+      - /dev/sdi
+      - /dev/sdj
+    labels:
+      traefik.enable: false
+

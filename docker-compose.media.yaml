@@ -1,6 +1,6 @@
 x-common-media: &media
   radarr:
-    image: lscr.io/linuxserver/radarr
+    image: ghcr.io/linuxserver/radarr
     container_name: radarr
     <<: *common
     volumes:
@@ -10,6 +10,9 @@ x-common-media: &media
     healthcheck:
       test: ["CMD-SHELL", "curl --fail localhost:7878"]
       <<: *healthcheck
+    depends_on:
+      qbittorrent:
+        condition: service_healthy
     labels:
       traefik.http.routers.radarr.rule:
         Host(`request.${DOMAIN}`) && PathPrefix(`/movies`) && $RESTRICTED
@@ -20,7 +23,7 @@ x-common-media: &media
       traefik.http.routers.radarr.middlewares: auth@file
 
   sonarr:
-    image: lscr.io/linuxserver/sonarr:develop
+    image: ghcr.io/linuxserver/sonarr:develop
     container_name: sonarr
     <<: *common
     volumes:
@@ -30,6 +33,9 @@ x-common-media: &media
     healthcheck:
       test: ["CMD-SHELL", "curl --fail localhost:8989"]
       <<: *healthcheck
+    depends_on:
+      qbittorrent:
+        condition: service_healthy
     labels:
       traefik.http.routers.sonarr.rule:
         Host(`request.${DOMAIN}`) && PathPrefix(`/shows`) && $RESTRICTED 
@@ -40,7 +46,7 @@ x-common-media: &media
       traefik.http.routers.sonarr.middlewares: auth@file
 
   readarr:
-    image: lscr.io/linuxserver/readarr:develop
+    image: ghcr.io/linuxserver/readarr:develop
     container_name: readarr
     <<: *common
     volumes:
@@ -50,6 +56,9 @@ x-common-media: &media
     healthcheck:
       test: ["CMD-SHELL", "curl --fail localhost:8787"]
       <<: *healthcheck
+    depends_on:
+      qbittorrent:
+        condition: service_healthy
     labels:
       traefik.http.routers.readarr.rule:
         Host(`request.${DOMAIN}`) && PathPrefix(`/books`) && $RESTRICTED
@@ -79,7 +88,7 @@ x-common-media: &media
       traefik.http.routers.youtube.middlewares: auth@file
 
   prowlarr:
-    image: lscr.io/linuxserver/prowlarr:develop
+    image: ghcr.io/linuxserver/prowlarr:develop
     container_name: indexers
     <<: *common
     volumes:
@@ -123,7 +132,7 @@ x-common-media: &media
       traefik.enable: false
 
   qbittorrent:
-    image: lscr.io/linuxserver/qbittorrent
+    image: ghcr.io/linuxserver/qbittorrent
     container_name: downloads
     <<: *logging
     restart: unless-stopped
@@ -144,7 +153,7 @@ x-common-media: &media
       - config-qbittorrent:/config
       - media:/media
     security_opt:
-      - no-new-privileges:true
+      - no-new-privileges=true
     healthcheck:
       test: ["CMD-SHELL", "curl --fail localhost:8980"]
       <<: *healthcheck
@@ -173,7 +182,7 @@ x-common-media: &media
       - config-jellyseerr:/app/config
     environment:
       <<: *env-vars
-      LOG_LEVEL: debug
+      LOG_LEVEL: WARN
     healthcheck:
       test:
         [
@@ -185,6 +194,9 @@ x-common-media: &media
           "http://localhost:5055",
         ]
       <<: *healthcheck
+    depends_on:
+      watch:
+        condition: service_healthy
     labels:
       traefik.http.routers.jellyseerr.entryPoints: websecure
       traefik.http.services.jellyseerr.loadbalancer.server.port: 5055
@@ -193,7 +205,7 @@ x-common-media: &media
 
   watch:
     container_name: watch
-    image: lscr.io/linuxserver/jellyfin
+    image: ghcr.io/linuxserver/jellyfin
     <<: *common
     environment:
       <<: *env-vars
@@ -213,7 +225,7 @@ x-common-media: &media
       - config-jellyfin-cache:/cache
       - media:/media
     security_opt:
-      - seccomp:unconfined
+      - seccomp=unconfined
     devices:
       - /dev/dri:/dev/dri
       - /dev/kfd:/dev/kfd
@@ -238,7 +250,7 @@ x-common-media: &media
         [
           "CMD",
           "wget",
-          "--no-verbose",
+          "--quiet",
           "--tries=1",
           "--spider",
           "http://localhost:8080",
@@ -254,7 +266,7 @@ x-common-media: &media
 
   calibre:
     container_name: calibre
-    image: lscr.io/linuxserver/calibre
+    image: ghcr.io/linuxserver/calibre
     <<: *common
     volumes:
       - media-books:/config
@@ -270,7 +282,7 @@ x-common-media: &media
       traefik.http.routers.calibre.middlewares: auth@file
 
   beets:
-    image: lscr.io/linuxserver/beets:nightly
+    image: ghcr.io/linuxserver/beets:nightly
     container_name: beets
     <<: *common
     volumes:
@@ -290,7 +302,7 @@ x-common-media: &media
       DB_PASSWORD: ${DATABASE_PASSWORD}
       DB_DATABASE_NAME: immich
       DB_PORT: 5432
-      REDIS_HOSTNAME: redis
+      REDIS_HOSTNAME: valkey
       REDIS_PORT: 6379
       REDIS_PASSWORD: ${REDIS_PASSWORD}
       MACHINE_LEARNING_WORKERS: 1
@@ -303,12 +315,12 @@ x-common-media: &media
       <<: *healthcheck
     depends_on:
       - pg-vectors
-      - redis
+      - valkey
     volumes:
       - config-immich:/config
       - media-photos:/photos
     labels:
-      traefik.http.routers.immich.rule: Host(`photos.${DOMAIN}`) && $RESTRICTED
+      traefik.http.routers.immich.rule: Host(`photos.${DOMAIN}`) && !PathPrefix(`/share`) && $RESTRICTED
       traefik.http.services.immich.loadBalancer.server.port: 8080
       traefik.http.routers.immich.entryPoints: websecure
       traefik.http.routers.immich.tls: true

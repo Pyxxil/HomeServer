@@ -25,14 +25,6 @@ x-common-admin: &admin
       - --certificatesresolvers.letsencrypt.acme.storage=/config/acme.json
       - --entryPoints.ldaps.address=:636/tcp
       - --entryPoints.mqtts.address=:8883
-      #- --entryPoints.web.address=:80
-      #- --entryPoints.web.forwardedHeaders.insecure=false
-      #- --entryPoints.web.proxyProtocol.insecure=false
-      #- --entryPoints.web.forwardedHeaders.trustedIPs=${TRUSTED_IPS}
-      #- --entryPoints.web.proxyProtocol.trustedIPs=${TRUSTED_IPS}
-      #- --entryPoints.web.http.redirections.entryPoint.to=websecure
-      #- --entryPoints.web.http.redirections.entryPoint.scheme=https
-      #- --entryPoints.web.http.redirections.entryPoint.permanent=true
       - --entryPoints.websecure.address=:443
       - --entryPoints.websecure.http.middlewares=compress@file,security@file,ratelimit@file,inflight@file,autodetect@file
       - --entryPoints.websecure.http.tls.certResolver=letsencrypt
@@ -66,14 +58,18 @@ x-common-admin: &admin
       DOMAIN: ${DOMAIN}
       RESTRICTED: ${RESTRICTED}
     ports:
-      - 0.0.0.0:443:443/udp
-      - 0.0.0.0:443:443/tcp
-      - 0.0.0.0:636:636/tcp
-      - 0.0.0.0:8883:8883
-      - ":::443:443/udp"
-      - ":::443:443/tcp"
-      - ":::636:636/tcp"
-      - ":::8883:8883"
+      - ${IP}:443:443/udp
+      - ${VPN_IP}:443:443/udp
+      - ${IP}:443:443/tcp
+      - ${VPN_IP}:443:443/tcp
+      - ${IP}:636:636/tcp
+      - ${VPN_IP}:636:636/tcp
+      - ${IP}:8883:8883
+      - ${VPN_IP}:8883:8883
+      - ${IPV6}:443:443/udp
+      - ${IPV6}:443:443/tcp
+      - ${IPV6}:636:636/tcp
+      - ${IPV6}:8883:8883
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - config-traefik:/config
@@ -193,7 +189,6 @@ x-common-admin: &admin
     healthcheck:
       test: ["CMD-SHELL", "wget -q --tries=1 http://localhost:80/v1/health -O - | grep -Eo '\"healthy\"\\s*:\\s*true' || exit 1"]
       <<: *healthcheck
-    read_only: true
     labels:
       traefik.http.routers.ntfy.rule: Host(`ntfy.${DOMAIN}`) && $RESTRICTED
       traefik.http.routers.ntfy.entryPoints: websecure
@@ -213,17 +208,18 @@ x-common-admin: &admin
       - net.ipv6.conf.all.disable_ipv6=0
     environment:
       <<: *env-vars
-      VPN_SERVICE_PROVIDER: mullvad
       VPN_TYPE: wireguard
-      WIREGUARD_PRIVATE_KEY: $MULLVAD_PRIVATE_KEY
-      WIREGUARD_ADDRESSES: $MULLVAD_ADDRESSES
-      SERVER_COUNTRIES: Switzerland,Sweden,Netherlands
+      VPN_SERVICE_PROVIDER: mullvad
+      WIREGUARD_PRIVATE_KEY: ${MULLVAD_PRIVATE_KEY}
+      WIREGUARD_ADDRESSES: ${MULLVAD_ADDRESSES}
+      WIREGUARD_ENDPOINT_PORT: ${MULLVAD_ENDPOINT_PORT}
+      SERVER_COUNTRIES: Switzerland,Sweden,Netherlands,Denmark,Finland,Germany
       OWNED_ONLY: yes
-      WIREGUARD_ENDPOINT_PORT: $MULLVAD_ENDPOINT_PORT
       FIREWALL_OUTBOUND_SUBNETS: 172.20.0.0/14,fd00::/112
       DOT_PROVIDERS: cloudflare,quad9
       DOT_IPV6: on
     labels:
+      # Torrents
       traefik.http.routers.qbittorrent.rule: Host(`downloads.${DOMAIN}`) && $RESTRICTED
       traefik.http.routers.qbittorrent.entryPoints: websecure
       traefik.http.services.qbittorrent.loadbalancer.server.port: 8980
@@ -235,6 +231,7 @@ x-common-admin: &admin
       traefik.http.middlewares.qbittorrent-headers.headers.customrequestheaders.Origin: ""
       traefik.http.routers.qbittorrent.middlewares: qbittorrent-headers,auth@file,security@file
       traefik.http.routers.qbittorrent.service: qbittorrent
+      # RSS
       traefik.http.routers.freshrss.rule: Host(`rss.${DOMAIN}`) && $RESTRICTED
       traefik.http.routers.freshrss.entryPoints: websecure
       traefik.http.routers.freshrss.tls: true
